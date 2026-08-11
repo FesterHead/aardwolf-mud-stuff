@@ -1,0 +1,647 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="Aardwolf_Potion_Quaffer"
+   author="FesterHead"
+   id="df7b83c21a4d96b4e2f8c11a"
+   language="Lua"
+   purpose="GMCP Vitals tracker with automated bag-pull potion quaffing"
+   date_written="2026-06-26"
+   requires="5.06"
+   version="1.0"
+   save_state="y"
+>
+<description trim="y">
+Monitors GMCP vitals to automatically get and quaff potions from a designated bag.
+Displays live counts in a draggable miniwindow using Consolas 14pt.
+</description>
+</plugin>
+
+<aliases>
+  <alias
+   name="SetPotionBag"
+   match="^quaff bag (.*)$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>
+     SetPotionBag("%1")
+  </send>
+  </alias>
+  <alias
+   name="SetHPQuaff"
+   match="^quaff hp (\d+)$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>
+     SetHPQuaffThreshold(tonumber("%1"))
+  </send>
+  </alias>
+  <alias
+   name="SetManaQuaff"
+   match="^quaff mana (\d+)$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>
+     SetManaQuaffThreshold(tonumber("%1"))
+  </send>
+  </alias>
+  <alias
+   name="SetHealKeys"
+   match="^quaff heal_keys (.*)$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>
+     SetHealKeys("%1")
+  </send>
+  </alias>
+  <alias
+   name="SetManaKeys"
+   match="^quaff mana_keys (.*)$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>
+     SetManaKeys("%1")
+  </send>
+  </alias>
+  <alias
+   name="SetHealCmd"
+   match="^quaff heal_cmd (.*)$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>
+     SetHealCmd("%1")
+  </send>
+  </alias>
+  <alias
+   name="SetManaCmd"
+   match="^quaff mana_cmd (.*)$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>
+     SetManaCmd("%1")
+  </send>
+  </alias>
+  <alias
+   name="QuaffHelp"
+   match="^quaff help$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>
+     QuaffHelp()
+  </send>
+  </alias>
+  <alias
+   name="QuaffScan"
+   match="^quaff scan$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>
+     QuaffScan()
+  </send>
+  </alias>
+</aliases>
+
+<!-- Triggers to capture container inventory updates for potion counts -->
+<triggers>
+  <!-- Potion bag validation triggers (disabled by default) -->
+  <trigger
+   enabled="n"
+   match="^(.*) \((carried|worn|link)\) :$"
+   regexp="y"
+   script="BagValidationSuccess"
+   sequence="10"
+   omit_from_output="y"
+   group="bag_validator"
+  ></trigger>
+  <trigger
+   enabled="n"
+   match="^(The |A )?(.*) contains:$"
+   regexp="y"
+   script="BagValidationSuccess"
+   sequence="10"
+   omit_from_output="y"
+   group="bag_validator"
+  ></trigger>
+  <trigger
+   enabled="n"
+   match="^(.*) is empty\.$"
+   regexp="y"
+   script="BagValidationSuccess"
+   sequence="10"
+   omit_from_output="y"
+   group="bag_validator"
+  ></trigger>
+  <trigger
+   enabled="n"
+   match="^That container is closed\.$"
+   regexp="y"
+   script="BagValidationSuccess"
+   sequence="10"
+   omit_from_output="y"
+   group="bag_validator"
+  ></trigger>
+  <trigger
+   enabled="n"
+   match="^You do not see (.*) here\.$"
+   regexp="y"
+   script="BagValidationFailure"
+   sequence="10"
+   omit_from_output="y"
+   group="bag_validator"
+  ></trigger>
+  <trigger
+   enabled="n"
+   match="^That is not a container\.$"
+   regexp="y"
+   script="BagValidationFailure"
+   sequence="10"
+   omit_from_output="y"
+   group="bag_validator"
+  ></trigger>
+
+  <!-- Potion bag tracking triggers -->
+  <trigger
+   enabled="y"
+   match="^You put (\d+|a|an) (?:\* )?(.*) (in|into) (.*)\.$"
+   regexp="y"
+   script="HandlePutPotion"
+   sequence="100"
+  ></trigger>
+  <trigger
+   enabled="y"
+   match="^You get (\d+|a|an) (?:\* )?(.*) from (.*)\.$"
+   regexp="y"
+   script="HandleGetPotion"
+   sequence="100"
+  ></trigger>
+  <trigger
+   enabled="y"
+   match="^(The |A )?(.*) contains:$"
+   regexp="y"
+   script="StartBagScan"
+   sequence="100"
+  ></trigger>
+  <trigger
+   enabled="y"
+   match="^(.*) \((carried|worn|link)\) :$"
+   regexp="y"
+   script="StartBagScan"
+   sequence="100"
+  ></trigger>
+  <trigger
+   enabled="y"
+   match="^(The |A )?(.*) is empty\.$"
+   regexp="y"
+   script="HandleEmptyBag"
+   sequence="100"
+  ></trigger>
+
+  <!-- Bag scanner group (disabled by default) -->
+  <trigger
+   enabled="n"
+   match="^\s*(?:\(\s*(\d+)\))?\s*(?:\([A-Za-z0-9*]+\)\s*)*\s*(.*?)(?:\s*\(\d+\))?\s*$"
+   regexp="y"
+   script="ScanBagItem"
+   sequence="100"
+   group="bag_scanner"
+  ></trigger>
+  <trigger
+   enabled="n"
+   match="^.*\[\d+/\d+hp \d+/\d+mn .*\]"
+   regexp="y"
+   script="EndBagScan"
+   sequence="10"
+   group="bag_scanner"
+  ></trigger>
+  <trigger
+   enabled="n"
+   match="^(\s*)$"
+   regexp="y"
+   script="EndBagScan"
+   sequence="10"
+   group="bag_scanner"
+  ></trigger>
+</triggers>
+
+<!--  Script  -->
+<script>
+<![CDATA[
+require "gmcphelper"
+require "mw_theme_base"
+require "movewindow"
+
+-- ============================================================================
+-- CONFIGURATION (Default values loaded/saved in MUSHclient variables)
+-- ============================================================================
+local POTION_BAG = GetVariable("POTION_BAG") or "backpack"
+local HP_QUAFF_PERCENT = tonumber(GetVariable("HP_QUAFF_PERCENT")) or 40
+local MANA_QUAFF_PERCENT = tonumber(GetVariable("MANA_QUAFF_PERCENT")) or 30
+-- ============================================================================
+
+-- Tracked data
+local potions = {
+   healing = 0,
+   mana = 0
+}
+
+-- Adjusted sizes up to scale elegantly with 14pt Consolas
+local default_width  = 260
+local default_height = 115
+local default_x      = 700
+local default_y      = 200
+local LEFT_MARGIN    = 14
+local TOP_MARGIN     = 10
+
+-- File scope variables for correct cross-function visibility
+local win = GetPluginID()
+local font_id
+local line_height
+local pending_bag
+local validation_timer
+local silent_scan = false
+
+local HEAL_POTION_CMD = GetVariable("HEAL_POTION_CMD") or "healing"
+local MANA_POTION_CMD = GetVariable("MANA_POTION_CMD") or "mana"
+local HEAL_POTION_KEYWORDS_LIST = {}
+local MANA_POTION_KEYWORDS_LIST = {}
+local scanning_bag = false
+
+local function update_keyword_lists()
+   local heal_str = GetVariable("HEAL_POTION_KEYWORDS") or "healing,heal,cure,light relief,serious relief,critical care,honey"
+   
+   -- Auto-upgrade old saved variables to include the new defaults if they are missing
+   if not string.find(heal_str, "serious relief", 1, true) then
+      heal_str = heal_str .. ",serious relief"
+   end
+   if not string.find(heal_str, "critical care", 1, true) then
+      heal_str = heal_str .. ",critical care"
+   end
+   if not string.find(heal_str, "honey", 1, true) then
+      heal_str = heal_str .. ",honey"
+   end
+   
+   local mana_str = GetVariable("MANA_POTION_KEYWORDS") or "mana,refresh,black lotus"
+   
+   HEAL_POTION_KEYWORDS_LIST = {}
+   for word in string.gmatch(heal_str, "([^,]+)") do
+      table.insert(HEAL_POTION_KEYWORDS_LIST, Trim(string.lower(word)))
+   end
+   
+   MANA_POTION_KEYWORDS_LIST = {}
+   for word in string.gmatch(mana_str, "([^,]+)") do
+      table.insert(MANA_POTION_KEYWORDS_LIST, Trim(string.lower(word)))
+   end
+   
+   SetVariable("HEAL_POTION_KEYWORDS", heal_str)
+end
+
+local function get_potion_type(item_name)
+   local name_lower = string.lower(item_name)
+   
+   for _, key in ipairs(HEAL_POTION_KEYWORDS_LIST) do
+      if string.find(name_lower, key, 1, true) then
+         return "healing"
+      end
+   end
+   
+   for _, key in ipairs(MANA_POTION_KEYWORDS_LIST) do
+      if string.find(name_lower, key, 1, true) then
+         return "mana"
+      end
+   end
+   
+   return nil
+end
+
+function OnPluginInstall()
+   update_keyword_lists()
+   font_id = win
+   local font_name = "Consolas"
+   local font_size = 14
+
+   local windowinfo = movewindow.install(win, miniwin.pos_top_right, miniwin.create_absolute_location, false, nil, {mouseup=MouseUp}, {x=default_x, y=default_y})
+   WindowCreate(win, windowinfo.window_left, windowinfo.window_top, default_width, default_height, windowinfo.window_mode, windowinfo.window_flags, Theme.SECONDARY_BODY)
+   WindowFont(win, font_id, font_name, font_size, false, false, false, false, 0)
+
+   line_height = WindowFontInfo(win, font_id, 1) + 4
+
+   DrawWindow()
+   Note("-> Potion Quaffer Plugin Loaded. Type 'quaff help' for commands and status.")
+end
+
+function OnPluginClose()
+   WindowDelete(win)
+end
+
+function DrawWindow()
+   local bodyleft, bodytop, bodyright, bodybottom = Theme.DrawBorder(win)
+   WindowRectOp(win, 2, bodyleft, bodytop, bodyright+1, bodybottom+1, Theme.PRIMARY_BODY)
+
+   Theme.DrawTitleBar(win, font_id, " Potion Tracker", "center")
+
+   local top = TOP_MARGIN + line_height
+
+   WindowText(win, font_id, string.format("Healing (<%d%%):", HP_QUAFF_PERCENT), LEFT_MARGIN, top, 0, 0, Theme.BODY_TEXT)
+   WindowText(win, font_id, string.format("%3d", potions.healing), LEFT_MARGIN + 180, top, 0, 0, potions.healing > 0 and 0x00FF00 or 0x0000FF)
+
+   top = top + line_height
+   WindowText(win, font_id, string.format("Mana (<%d%%):", MANA_QUAFF_PERCENT), LEFT_MARGIN, top, 0, 0, Theme.BODY_TEXT)
+   WindowText(win, font_id, string.format("%3d", potions.mana), LEFT_MARGIN + 180, top, 0, 0, potions.mana > 0 and 0x00FF00 or 0x0000FF)
+
+   top = top + line_height
+   WindowText(win, font_id, "Bag:", LEFT_MARGIN, top, 0, 0, Theme.BODY_TEXT)
+   WindowText(win, font_id, POTION_BAG, LEFT_MARGIN + 60, top, 0, 0, Theme.BODY_TEXT)
+
+   movewindow.add_drag_handler(win, 0, 0, 0, 0)
+   WindowShow(win, true)
+   CallPlugin("abc1a0944ae4af7586ce88dc", "BufferedRepaint")
+end
+
+function MouseUp(flags, hotspot_id, win)
+   return true
+end
+
+-- AUTOMATED QUAFFER LOGIC via GMCP
+function OnPluginBroadcast (msg, id, name, text)
+   if (id == '3e7dedbe37e44942dd46d264') then
+      if (text == "char.vitals") then
+         local gmcpchar = gmcp("char")
+         if gmcpchar and gmcpchar.vitals and gmcpchar.maxstats then
+
+            local hp_pct = (tonumber(gmcpchar.vitals.hp) / tonumber(gmcpchar.maxstats.maxhp)) * 100
+            local mana_pct = (tonumber(gmcpchar.vitals.mana) / tonumber(gmcpchar.maxstats.maxmana)) * 100
+
+            -- Check HP Threshold
+            if hp_pct < HP_QUAFF_PERCENT and potions.healing > 0 then
+               Send(string.format("get %s '%s'", HEAL_POTION_CMD, POTION_BAG))
+               Send(string.format("quaff %s", HEAL_POTION_CMD))
+               potions.healing = math.max(0, potions.healing - 1)
+               DrawWindow()
+            -- Check Mana Threshold
+            elseif mana_pct < MANA_QUAFF_PERCENT and potions.mana > 0 then
+               Send(string.format("get %s '%s'", MANA_POTION_CMD, POTION_BAG))
+               Send(string.format("quaff %s", MANA_POTION_CMD))
+               potions.mana = math.max(0, potions.mana - 1)
+               DrawWindow()
+            end
+         end
+      end
+   end
+end
+
+-- INVENTORY & BAG TRACKING LOGIC
+function HandlePutPotion(name, line, wildcards)
+   local qty_str = wildcards[1]
+   local item_name = wildcards[2]
+   local dest_bag = wildcards[4]
+   
+   local qty = 1
+   if qty_str ~= "a" and qty_str ~= "an" then
+      qty = tonumber(qty_str) or 1
+   end
+   
+   if string.find(string.lower(dest_bag), string.lower(POTION_BAG), 1, true) then
+      local ptype = get_potion_type(item_name)
+      if ptype then
+         potions[ptype] = potions[ptype] + qty
+         DrawWindow()
+      end
+   end
+end
+
+function HandleGetPotion(name, line, wildcards)
+   local qty_str = wildcards[1]
+   local item_name = wildcards[2]
+   local source_bag = wildcards[3]
+   
+   local qty = 1
+   if qty_str ~= "a" and qty_str ~= "an" then
+      qty = tonumber(qty_str) or 1
+   end
+   
+   if string.find(string.lower(source_bag), string.lower(POTION_BAG), 1, true) then
+      local ptype = get_potion_type(item_name)
+      if ptype then
+         potions[ptype] = math.max(0, potions[ptype] - qty)
+         DrawWindow()
+      end
+   end
+end
+
+function HandleEmptyBag(name, line, wildcards)
+   local matched_bag = wildcards[2] or wildcards[1]
+   if string.find(string.lower(matched_bag), string.lower(POTION_BAG), 1, true) then
+      potions.healing = 0
+      potions.mana = 0
+      DrawWindow()
+      if silent_scan then
+         DeleteLines(1)
+         silent_scan = false
+         Note("-> Potion bag scanned successfully (bag is empty).")
+      end
+   end
+end
+
+function StartBagScan(name, line, wildcards)
+   local matched_bag = wildcards[2] or wildcards[1]
+   if string.find(string.lower(matched_bag), string.lower(POTION_BAG), 1, true) then
+      scanning_bag = true
+      potions.healing = 0
+      potions.mana = 0
+      EnableTriggerGroup("bag_scanner", true)
+      if silent_scan then
+         DeleteLines(1)
+      end
+   end
+end
+
+function ScanBagItem(name, line, wildcards)
+   if not scanning_bag then return end
+   if silent_scan then
+      DeleteLines(1)
+   end
+   
+   local qty_str = wildcards[1]
+   local item_name = wildcards[2]
+   
+   local qty = 1
+   if qty_str and qty_str ~= "" then
+      qty = tonumber(qty_str) or 1
+   end
+   
+   local ptype = get_potion_type(item_name)
+   if ptype then
+      potions[ptype] = potions[ptype] + qty
+   end
+end
+
+function EndBagScan(name, line, wildcards)
+   if scanning_bag then
+      scanning_bag = false
+      EnableTriggerGroup("bag_scanner", false)
+      if silent_scan then
+         DeleteLines(1)
+         silent_scan = false
+         Note("-> Potion bag scanned successfully.")
+      end
+      DrawWindow()
+   end
+end
+
+function OnPluginSaveState()
+   movewindow.save_state(win)
+   SetVariable("POTION_BAG", POTION_BAG)
+   SetVariable("HP_QUAFF_PERCENT", tostring(HP_QUAFF_PERCENT))
+   SetVariable("MANA_QUAFF_PERCENT", tostring(MANA_QUAFF_PERCENT))
+   SetVariable("HEAL_POTION_KEYWORDS", GetVariable("HEAL_POTION_KEYWORDS") or "healing,heal,cure,light relief,serious relief,critical care,honey")
+   SetVariable("MANA_POTION_KEYWORDS", GetVariable("MANA_POTION_KEYWORDS") or "mana,refresh,black lotus")
+   SetVariable("HEAL_POTION_CMD", HEAL_POTION_CMD)
+   SetVariable("MANA_POTION_CMD", MANA_POTION_CMD)
+end
+
+function SetPotionBag(new_bag)
+   pending_bag = Trim(new_bag)
+   EnableTriggerGroup("bag_validator", true)
+   SendNoEcho("look in " .. pending_bag)
+
+   -- Set a 2-second temporary one-shot timeout to disable validation triggers if the MUD doesn't respond
+   DeleteTimer("bag_validator_timeout")
+   AddTimer("bag_validator_timeout", 0, 0, 2, "", 21, "BagValidationTimeout")
+end
+
+function BagValidationTimeout()
+   if pending_bag then
+      EnableTriggerGroup("bag_validator", false)
+      pending_bag = nil
+      Note("-> [ERROR]: Potion bag validation timed out. No response from MUD.")
+   end
+end
+
+function BagValidationSuccess(name, line, wildcards)
+   DeleteTimer("bag_validator_timeout")
+   EnableTriggerGroup("bag_validator", false)
+   POTION_BAG = pending_bag
+   pending_bag = nil
+   SaveState()
+   DrawWindow()
+   Note("-> Potion bag successfully validated and set to: " .. POTION_BAG)
+end
+
+function BagValidationFailure(name, line, wildcards)
+   DeleteTimer("bag_validator_timeout")
+   EnableTriggerGroup("bag_validator", false)
+   pending_bag = nil
+   Note("-> [ERROR]: Potion bag validation failed. MUD returned: '" .. line .. "'")
+   Note("-> Potion bag remains set to: " .. POTION_BAG)
+end
+
+function SetHPQuaffThreshold(percent)
+   if percent >= 0 and percent <= 100 then
+      HP_QUAFF_PERCENT = percent
+      SaveState()
+      DrawWindow()
+      Note("-> Healing potion quaff threshold updated to: " .. HP_QUAFF_PERCENT .. "%")
+   else
+      Note("-> Error: Percent must be between 0 and 100.")
+   end
+end
+
+function SetManaQuaffThreshold(percent)
+   if percent >= 0 and percent <= 100 then
+      MANA_QUAFF_PERCENT = percent
+      SaveState()
+      DrawWindow()
+      Note("-> Mana potion quaff threshold updated to: " .. MANA_QUAFF_PERCENT .. "%")
+   else
+      Note("-> Error: Percent must be between 0 and 100.")
+   end
+end
+
+function SetHealKeys(keys_str)
+   SetVariable("HEAL_POTION_KEYWORDS", keys_str)
+   update_keyword_lists()
+   SaveState()
+   Note("-> Potion healing keywords updated to: " .. keys_str)
+end
+
+function SetManaKeys(keys_str)
+   SetVariable("MANA_POTION_KEYWORDS", keys_str)
+   update_keyword_lists()
+   SaveState()
+   Note("-> Potion mana keywords updated to: " .. keys_str)
+end
+
+function SetHealCmd(cmd)
+   HEAL_POTION_CMD = Trim(cmd)
+   SaveState()
+   Note("-> Potion healing command keyword set to: " .. HEAL_POTION_CMD)
+end
+
+function SetManaCmd(cmd)
+   MANA_POTION_CMD = Trim(cmd)
+   SaveState()
+   Note("-> Potion mana command keyword set to: " .. MANA_POTION_CMD)
+end
+
+function QuaffHelp()
+   local heal_keys = GetVariable("HEAL_POTION_KEYWORDS") or "healing,heal,cure,light relief,serious relief,critical care"
+   local mana_keys = GetVariable("MANA_POTION_KEYWORDS") or "mana,refresh,black lotus"
+   
+   ColourNote("#808080", "", "\n+=================================================================+")
+   ColourNote("#00FF00", "", "    Aardwolf Potion Quaffer v1.0 Help Menu")
+   ColourNote("#808080", "", "+=================================================================+")
+   ColourNote("#E0E0E0", "", "  Monitors GMCP vitals and automatically gets/quaffs potions.")
+   ColourNote("#808080", "", "-------------------------------------------------------------------")
+   ColourNote("#00B4E0", "", "  Commands:")
+   ColourNote("#FFFF00", "", "    quaff bag <bag>       ", "#E0E0E0", "", "- Set/validate container (current: " .. POTION_BAG .. ")")
+   ColourNote("#FFFF00", "", "    quaff hp <%>          ", "#E0E0E0", "", "- Set HP threshold percentage (current: " .. HP_QUAFF_PERCENT .. "%)")
+   ColourNote("#FFFF00", "", "    quaff mana <%>        ", "#E0E0E0", "", "- Set Mana threshold percentage (current: " .. MANA_QUAFF_PERCENT .. "%)")
+   ColourNote("#FFFF00", "", "    quaff heal_keys <keys>", "#E0E0E0", "", "- Substrings to scan heal potions")
+   ColourNote("#FFFF00", "", "    quaff mana_keys <keys>", "#E0E0E0", "", "- Substrings to scan mana potions")
+   ColourNote("#FFFF00", "", "    quaff heal_cmd <kw>   ", "#E0E0E0", "", "- Command used to get/quaff heal (current: " .. HEAL_POTION_CMD .. ")")
+   ColourNote("#FFFF00", "", "    quaff mana_cmd <kw>   ", "#E0E0E0", "", "- Command used to get/quaff mana (current: " .. MANA_POTION_CMD .. ")")
+   ColourNote("#FFFF00", "", "    quaff scan            ", "#E0E0E0", "", "- Silently scan and sync bag potion counts")
+   ColourNote("#FFFF00", "", "    quaff help            ", "#E0E0E0", "", "- Show this help menu")
+   ColourNote("#808080", "", "-------------------------------------------------------------------")
+   ColourNote("#00B4E0", "", "  Current Keywords Configuration:")
+   ColourNote("#E0E0E0", "", "    Heal Match Keys : " .. heal_keys)
+   ColourNote("#E0E0E0", "", "    Mana Match Keys : " .. mana_keys)
+   ColourNote("#808080", "", "+=================================================================+\n")
+end
+
+function QuaffScan()
+   silent_scan = true
+   SendNoEcho("look in " .. POTION_BAG)
+end
+]]>
+</script>
+</muclient>

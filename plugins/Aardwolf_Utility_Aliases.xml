@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="Aardwolf_Utility_Aliases"
+   author="FesterHead"
+   id="ca8f9a2d7e6c4b1a3f5e9d8d"
+   language="Lua"
+   purpose="Executes custom sequences of commands via aliases"
+   date_written="2026-06-26"
+   requires="5.06"
+   version="1.0"
+   save_state="y"
+>
+<description trim="y">
+Provides handy alias sequences:
+- 'ppp': Auto-retrieves, holds, enters, removes, and bags a portal.
+- 'dsa': Drop all, sac all, and look.
+</description>
+</plugin>
+
+<aliases>
+  <!-- Alias for ppp -->
+  <alias
+   name="UsePortalSequence"
+   match="^ppp$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>
+    RunCommands({
+      "get portal from bag",
+      "hold portal",
+      "enter",
+      "remove portal",
+      "put portal in bag",
+      "wear candle"
+    })
+  </send>
+  </alias>
+
+  <!-- Alias for dsa -->
+  <alias
+   name="DropSacLookSequence"
+   match="^dsa$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>
+    RunCommands({
+      "drop all",
+      "sac all",
+      "look"
+    })
+  </send>
+  </alias>
+</aliases>
+
+<script>
+<![CDATA[
+-- Utility function to execute a table of commands sequentially
+function RunCommands(commands)
+   for _, cmd in ipairs(commands) do
+      Execute(cmd)
+   end
+end
+
+function OnPluginInstall()
+   Note("-> Utility Aliases Plugin Loaded. 'ppp' and 'dsa' aliases are active.")
+end
+]]>
+</script>
+</muclient>
