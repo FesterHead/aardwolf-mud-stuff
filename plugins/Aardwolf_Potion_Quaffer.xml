@@ -2,7 +2,7 @@
 <!DOCTYPE muclient>
 
 <muclient>
-   <plugin name="Aardwolf_Potion_Quaffer" author="FesterHead" id="df7b83c21a4d96b4e2f8c11a" language="Lua" purpose="GMCP Vitals tracker with automated bag-pull potion quaffing and manual quaff controls" date_written="2026-06-26" requires="5.06" version="1.0" save_state="y">
+   <plugin name="Aardwolf_Potion_Quaffer" author="FesterHead" id="df7b83c21a4d96b4e2f8c11a" language="Lua" purpose="GMCP Vitals tracker with automated bag-pull potion quaffing and manual quaff controls" date_written="2026-06-26" requires="5.06" version="1.1" save_state="y">
       <description trim="y">
 Monitors GMCP vitals to automatically get and quaff potions from a designated bag.
 Provides 'pquaff heal' and 'pquaff mana' aliases and Monokai spectrum miniwindow buttons for manual potion quaffing.
@@ -624,7 +624,7 @@ function QuaffHelp()
    local mana_keys = GetVariable("MANA_POTION_KEYWORDS") or "mana,refresh,black lotus"
 
    ColourNote("#808080", "", "\n+=================================================================+")
-   ColourNote("#A6E22E", "", "    Aardwolf Potion Quaffer v1.0 Help Menu")
+   ColourNote("#A6E22E", "", "    Aardwolf Potion Quaffer v1.1 Help Menu")
    ColourNote("#808080", "", "+=================================================================+")
    ColourNote("#F8F8F2", "", "  Monitors GMCP vitals and automatically gets/quaffs potions.")
    ColourNote("#808080", "", "-------------------------------------------------------------------")
