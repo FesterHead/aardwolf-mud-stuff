@@ -1,0 +1,430 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="Aardwolf_Hunt_Trick"
+   author="FesterHead"
+   id="a7e8b9c0d1e2f3a4b5c6d7e8"
+   language="Lua"
+   purpose="Automated hunt-stepping and campaign hunt-trick target locator"
+   date_written="2026-08-26"
+   requires="5.06"
+   version="1.0"
+   save_state="y"
+>
+<description trim="y">
+Automates target hunting and campaign hunt-trick mob index scanning.
+Uses non-conflicting command prefix 'phunt' and shortcut 'phtrick'.
+</description>
+</plugin>
+
+<aliases>
+  <alias
+   name="PHuntStepCmd"
+   match="^phunt step (.*)$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>
+     PHuntStep("%1")
+  </send>
+  </alias>
+
+  <alias
+   name="PHuntTrickCmd"
+   match="^(?:phunt trick|phtrick) (.*)$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>
+     PHuntTrick("%1")
+  </send>
+  </alias>
+
+  <alias
+   name="PHuntStopCmd"
+   match="^phunt (?:stop|abort)$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>
+     PHuntStop()
+  </send>
+  </alias>
+
+  <alias
+   name="PHuntMaxCmd"
+   match="^phunt max (\d+)$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>
+     SetMaxTrickCount(tonumber("%1"))
+  </send>
+  </alias>
+
+  <alias
+   name="PHuntHelpCmd"
+   match="^phunt(?: help)?$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>
+     PHuntHelp()
+  </send>
+  </alias>
+
+  <alias
+   name="PHuntDefaultMatch"
+   match="^phunt (?!step|trick|stop|abort|max|help)(.*)$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+   sequence="110"
+  >
+  <send>
+     PHuntStep("%1")
+  </send>
+  </alias>
+</aliases>
+
+<triggers>
+  <!-- Direction Triggers (Group: hunt_trick_triggers, Disabled by default) -->
+  <trigger
+   enabled="n"
+   group="hunt_trick_triggers"
+   keep_evaluating="y"
+   match="^You are confident that (.*?) passed through here, heading (.*?)\.$"
+   regexp="y"
+   script="HandleHuntDirection"
+   sequence="100"
+  ></trigger>
+
+  <trigger
+   enabled="n"
+   group="hunt_trick_triggers"
+   keep_evaluating="y"
+   match="^The trail of (.*?) is confusing, but you're reasonably sure (.*?) headed (.*?)\.$"
+   regexp="y"
+   script="HandleHuntDirection"
+   sequence="100"
+  ></trigger>
+
+  <trigger
+   enabled="n"
+   group="hunt_trick_triggers"
+   keep_evaluating="y"
+   match="^The trail of (.*?) is confusing, but you're reasonably sure (.*?) is (.*?)\.$"
+   regexp="y"
+   script="HandleHuntDirection"
+   sequence="100"
+  ></trigger>
+
+  <trigger
+   enabled="n"
+   group="hunt_trick_triggers"
+   keep_evaluating="y"
+   match="^You are almost certain that (.*?) is (.*?) from here\.$"
+   regexp="y"
+   script="HandleHuntDirection"
+   sequence="100"
+  ></trigger>
+
+  <trigger
+   enabled="n"
+   group="hunt_trick_triggers"
+   keep_evaluating="y"
+   match="^You are certain that (.*?) is (.*?) from here\.$"
+   regexp="y"
+   script="HandleHuntDirection"
+   sequence="100"
+  ></trigger>
+
+  <trigger
+   enabled="n"
+   group="hunt_trick_triggers"
+   keep_evaluating="y"
+   match="^You have no idea what you're doing, but maybe (.*?) is (.*?)\?$"
+   regexp="y"
+   script="HandleHuntDirection"
+   sequence="100"
+  ></trigger>
+
+  <trigger
+   enabled="n"
+   group="hunt_trick_triggers"
+   keep_evaluating="y"
+   match="^You have no idea what you're doing, but maybe (.*?) left (.*?)\?$"
+   regexp="y"
+   script="HandleHuntDirection"
+   sequence="100"
+  ></trigger>
+
+  <trigger
+   enabled="n"
+   group="hunt_trick_triggers"
+   keep_evaluating="y"
+   match="^There are traces of (.*?) having been here\. Perhaps they lead (.*?)\?$"
+   regexp="y"
+   script="HandleHuntDirection"
+   sequence="100"
+  ></trigger>
+
+  <!-- Status & Completion Triggers -->
+  <trigger
+   enabled="n"
+   group="hunt_trick_triggers"
+   keep_evaluating="y"
+   match="^(.*?) is here\!$"
+   regexp="y"
+   script="HandleTargetHere"
+   sequence="100"
+  ></trigger>
+
+  <trigger
+   enabled="n"
+   group="hunt_trick_triggers"
+   keep_evaluating="y"
+   match="^You couldn't find a path to (.*?) from here\.$"
+   regexp="y"
+   script="HandleNoPath"
+   sequence="100"
+  ></trigger>
+
+  <trigger
+   enabled="n"
+   group="hunt_trick_triggers"
+   keep_evaluating="y"
+   match="^No one in this area by the name '(.*)'\.$"
+   regexp="y"
+   script="HandleNoOneInArea"
+   sequence="100"
+  ></trigger>
+
+  <trigger
+   enabled="n"
+   group="hunt_trick_triggers"
+   keep_evaluating="y"
+   match="^You seem unable to hunt that target for some reason\.$"
+   regexp="y"
+   script="HandleUnableToHunt"
+   sequence="100"
+  ></trigger>
+
+  <trigger
+   enabled="n"
+   group="hunt_trick_triggers"
+   keep_evaluating="y"
+   match="^The (.*?) is closed\.$"
+   regexp="y"
+   script="HandleClosedDoor"
+   sequence="100"
+  ></trigger>
+</triggers>
+
+<script>
+<![CDATA[
+-- ============================================================================
+-- STATE & CONFIGURATION
+-- ============================================================================
+local state = "idle" -- "idle", "stepping", "tricking"
+local target_mob = ""
+local current_trick_index = 1
+local max_trick_count = tonumber(GetVariable("MAX_TRICK_COUNT")) or 20
+local last_dir = ""
+local step_count = 0
+local max_steps = 100
+
+local function clean_dir(d)
+   if not d then return "" end
+   d = string.lower(Trim(d))
+   d = string.gsub(d, "^to the ", "")
+   d = string.gsub(d, "^the ", "")
+   return d
+end
+
+function OnPluginInstall()
+   max_trick_count = tonumber(GetVariable("MAX_TRICK_COUNT")) or 20
+   Note("-> Hunt Trick Plugin Loaded. Type 'phunt help' for commands and status.")
+end
+
+function OnPluginClose()
+   PHuntStop()
+end
+
+function OnPluginSaveState()
+   SetVariable("MAX_TRICK_COUNT", tostring(max_trick_count))
+end
+
+function SetMaxTrickCount(count)
+   if count and count > 0 then
+      max_trick_count = count
+      SaveState()
+      ColourNote("#A6E22E", "", "-> Hunt trick max scan index updated to: " .. max_trick_count)
+   else
+      ColourNote("#FD971F", "", "-> Error: Max index must be greater than 0.")
+   end
+end
+
+function PHuntStep(target)
+   target = Trim(target)
+   if target == "" then
+      ColourNote("#FD971F", "", "-> Usage: phunt <mob_keyword>")
+      return
+   end
+
+   state = "stepping"
+   target_mob = target
+   step_count = 0
+   last_dir = ""
+
+   EnableTriggerGroup("hunt_trick_triggers", true)
+   ColourNote("#00B4E0", "", "-> Auto-hunt stepping started for target: '" .. target_mob .. "'")
+   Send("hunt " .. target_mob)
+end
+
+function PHuntTrick(target)
+   target = Trim(target)
+   if target == "" then
+      ColourNote("#FD971F", "", "-> Usage: phtrick <mob_keyword> or phunt trick <mob_keyword>")
+      return
+   end
+
+   state = "tricking"
+   target_mob = target
+   current_trick_index = 1
+
+   EnableTriggerGroup("hunt_trick_triggers", true)
+   ColourNote("#A6E22E", "", "-> Hunt-trick scan started for target: '" .. target_mob .. "' (max index: " .. max_trick_count .. ")")
+   ProbeNextTrickIndex()
+end
+
+function ProbeNextTrickIndex()
+   if state ~= "tricking" then return end
+
+   if current_trick_index > max_trick_count then
+      PHuntStop()
+      ColourNote("#FD971F", "", "-> Hunt-trick scan complete: Reached max index (" .. max_trick_count .. ") without encountering campaign target restriction.")
+      return
+   end
+
+   Send(string.format("hunt %d.%s", current_trick_index, target_mob))
+end
+
+function HandleHuntDirection(name, line, wildcards)
+   if state == "idle" then return end
+
+   -- Extract direction wildcard (always the last wildcard)
+   local raw_dir = wildcards[#wildcards]
+   local dir = clean_dir(raw_dir)
+
+   if state == "stepping" then
+      last_dir = dir
+      step_count = step_count + 1
+      if step_count > max_steps then
+         PHuntStop()
+         ColourNote("#FD971F", "", "-> Auto-hunt stopped: Exceeded maximum step limit (" .. max_steps .. ").")
+         return
+      end
+      Send(dir)
+      Send("hunt " .. target_mob)
+   elseif state == "tricking" then
+      -- Current index was huntable (normal mob), probe next index
+      current_trick_index = current_trick_index + 1
+      ProbeNextTrickIndex()
+   end
+end
+
+function HandleUnableToHunt(name, line, wildcards)
+   if state == "tricking" then
+      -- BINGO! The unable-to-hunt response indicates this index is the campaign/quest target!
+      local target_spec = string.format("%d.%s", current_trick_index, target_mob)
+      PHuntStop()
+      ColourNote("#808080", "", "\n+=================================================================+")
+      ColourNote("#A6E22E", "", "  [HUNT TRICK TARGET FOUND!]: " .. target_spec)
+      ColourNote("#808080", "", "+=================================================================+")
+      ColourNote("#F8F8F2", "", "  Executing 'where " .. target_spec .. "'...")
+      ColourNote("#808080", "", "+=================================================================+\n")
+      Send("where " .. target_spec)
+   elseif state == "stepping" then
+      PHuntStop()
+      ColourNote("#FD971F", "", "-> Auto-hunt stopped: Unable to hunt target '" .. target_mob .. "'.")
+   end
+end
+
+function HandleNoPath(name, line, wildcards)
+   if state == "tricking" then
+      current_trick_index = current_trick_index + 1
+      ProbeNextTrickIndex()
+   elseif state == "stepping" then
+      PHuntStop()
+      ColourNote("#FD971F", "", "-> Auto-hunt stopped: No path to target from here.")
+   end
+end
+
+function HandleNoOneInArea(name, line, wildcards)
+   if state == "tricking" then
+      current_trick_index = current_trick_index + 1
+      ProbeNextTrickIndex()
+   elseif state == "stepping" then
+      PHuntStop()
+      ColourNote("#FD971F", "", "-> Auto-hunt stopped: No target found in this area.")
+   end
+end
+
+function HandleTargetHere(name, line, wildcards)
+   if state == "stepping" then
+      PHuntStop()
+      ColourNote("#A6E22E", "", "-> Target reached! (" .. line .. ")")
+   end
+end
+
+function HandleClosedDoor(name, line, wildcards)
+   if state == "stepping" and last_dir ~= "" then
+      ColourNote("#66D9EF", "", "-> Door encountered heading " .. last_dir .. ". Opening door and resuming step...")
+      Send("open " .. last_dir)
+      Send(last_dir)
+      Send("hunt " .. target_mob)
+   end
+end
+
+function PHuntStop()
+   state = "idle"
+   target_mob = ""
+   current_trick_index = 1
+   step_count = 0
+   last_dir = ""
+   EnableTriggerGroup("hunt_trick_triggers", false)
+   ColourNote("#808080", "", "-> Hunt tracking stopped.")
+end
+
+function PHuntHelp()
+   ColourNote("#808080", "", "\n+=================================================================+")
+   ColourNote("#A6E22E", "", "    Aardwolf Hunt Trick v1.0 Help Menu")
+   ColourNote("#808080", "", "+=================================================================+")
+   ColourNote("#F8F8F2", "", "  Automates target hunt-stepping and campaign hunt-trick scanning.")
+   ColourNote("#808080", "", "-------------------------------------------------------------------")
+   ColourNote("#66D9EF", "", "  Commands:")
+   ColourNote("#E6DB74", "", "    phunt <mob>           ", "#F8F8F2", "", "- Auto-step towards mob (e.g. phunt guard)")
+   ColourNote("#E6DB74", "", "    phunt step <mob>      ", "#F8F8F2", "", "- Explicit auto-step towards mob")
+   ColourNote("#E6DB74", "", "    phtrick <mob>         ", "#F8F8F2", "", "- Run campaign hunt-trick scan (find 1.mob..N.mob)")
+   ColourNote("#E6DB74", "", "    phunt trick <mob>     ", "#F8F8F2", "", "- Run campaign hunt-trick scan")
+   ColourNote("#E6DB74", "", "    phunt max <count>     ", "#F8F8F2", "", "- Set max scan index limit (current: " .. max_trick_count .. ")")
+   ColourNote("#E6DB74", "", "    phunt stop / abort    ", "#F8F8F2", "", "- Immediately stop active hunt tracking")
+   ColourNote("#E6DB74", "", "    phunt help / phunt    ", "#F8F8F2", "", "- Display this help menu")
+   ColourNote("#808080", "", "+=================================================================+\n")
+end
+]]>
+</script>
+</muclient>
