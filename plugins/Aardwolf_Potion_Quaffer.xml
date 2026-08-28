@@ -2,7 +2,15 @@
 <!DOCTYPE muclient>
 
 <muclient>
-   <plugin name="Aardwolf_Potion_Quaffer" author="FesterHead" id="df7b83c21a4d96b4e2f8c11a" language="Lua" purpose="GMCP Vitals tracker with automated bag-pull potion quaffing and manual quaff controls" date_written="2026-06-26" requires="5.06" version="1.1" save_state="y">
+   <plugin name="Aardwolf_Potion_Quaffer"
+      author="FesterHead"
+      id="df7b83c21a4d96b4e2f8c11a"
+      language="Lua"
+      purpose="GMCP Vitals tracker with automated bag-pull potion quaffing and manual quaff controls"
+      date_written="2026-06-26"
+      requires="5.06"
+      version="1.1"
+      save_state="y">
       <description trim="y">
 Monitors GMCP vitals to automatically get and quaff potions from a designated bag.
 Provides 'pquaff heal' and 'pquaff mana' aliases and Monokai spectrum miniwindow buttons for manual potion quaffing.
@@ -11,72 +19,142 @@ Displays live counts and interactive action buttons in a draggable miniwindow us
    </plugin>
 
    <aliases>
-      <alias name="QuaffHealManual" match="^pquaff (?:heal|h)$" enabled="y" regexp="y" send_to="12" sequence="100">
+      <alias name="QuaffHealManual"
+         match="^pquaff (?:heal|h)$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
          <send>
      QuaffHealPotion()
          </send>
       </alias>
-      <alias name="QuaffManaManual" match="^pquaff (?:mana|m)$" enabled="y" regexp="y" send_to="12" sequence="100">
+      <alias name="QuaffManaManual"
+         match="^pquaff (?:mana|m)$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
          <send>
      QuaffManaPotion()
          </send>
       </alias>
-      <alias name="QuaffFlyManual" match="^pquaff (?:fly|f)$" enabled="y" regexp="y" send_to="12" sequence="100">
+      <alias name="QuaffFlyManual"
+         match="^pquaff (?:fly|f)$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
          <send>
      QuaffFlyPotion()
          </send>
       </alias>
-      <alias name="SetPotionBag" match="^pquaff bag (.*)$" enabled="y" regexp="y" send_to="12" sequence="100">
+      <alias name="SetPotionBag"
+         match="^pquaff bag (.*)$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
          <send>
      SetPotionBag("%1")
          </send>
       </alias>
-      <alias name="SetHPQuaff" match="^pquaff hp (\d+)$" enabled="y" regexp="y" send_to="12" sequence="100">
+      <alias name="SetHPQuaff"
+         match="^pquaff hp (\d+)$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
          <send>
      SetHPQuaffThreshold(tonumber("%1"))
          </send>
       </alias>
-      <alias name="SetManaQuaff" match="^pquaff mana (\d+)$" enabled="y" regexp="y" send_to="12" sequence="100">
+      <alias name="SetManaQuaff"
+         match="^pquaff mana (\d+)$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
          <send>
      SetManaQuaffThreshold(tonumber("%1"))
          </send>
       </alias>
-      <alias name="SetHealKeys" match="^pquaff heal_keys (.*)$" enabled="y" regexp="y" send_to="12" sequence="100">
+      <alias name="SetHealKeys"
+         match="^pquaff heal_keys (.*)$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
          <send>
      SetHealKeys("%1")
          </send>
       </alias>
-      <alias name="SetManaKeys" match="^pquaff mana_keys (.*)$" enabled="y" regexp="y" send_to="12" sequence="100">
+      <alias name="SetManaKeys"
+         match="^pquaff mana_keys (.*)$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
          <send>
      SetManaKeys("%1")
          </send>
       </alias>
-      <alias name="SetHealCmd" match="^pquaff heal_cmd (.*)$" enabled="y" regexp="y" send_to="12" sequence="100">
+      <alias name="SetHealCmd"
+         match="^pquaff heal_cmd (.*)$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
          <send>
      SetHealCmd("%1")
          </send>
       </alias>
-      <alias name="SetManaCmd" match="^pquaff mana_cmd (.*)$" enabled="y" regexp="y" send_to="12" sequence="100">
+      <alias name="SetManaCmd"
+         match="^pquaff mana_cmd (.*)$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
          <send>
      SetManaCmd("%1")
          </send>
       </alias>
-      <alias name="SetFlyKeys" match="^pquaff fly_keys (.*)$" enabled="y" regexp="y" send_to="12" sequence="100">
+      <alias name="SetFlyKeys"
+         match="^pquaff fly_keys (.*)$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
          <send>
      SetFlyKeys("%1")
          </send>
       </alias>
-      <alias name="SetFlyCmd" match="^pquaff fly_cmd (.*)$" enabled="y" regexp="y" send_to="12" sequence="100">
+      <alias name="SetFlyCmd"
+         match="^pquaff fly_cmd (.*)$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
          <send>
      SetFlyCmd("%1")
          </send>
       </alias>
-      <alias name="QuaffHelp" match="^pquaff(?: help)?$" enabled="y" regexp="y" send_to="12" sequence="100">
+      <alias name="QuaffHelp"
+         match="^pquaff(?: help)?$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
          <send>
      QuaffHelp()
          </send>
       </alias>
-      <alias name="QuaffScan" match="^pquaff scan$" enabled="y" regexp="y" send_to="12" sequence="100">
+      <alias name="QuaffScan"
+         match="^pquaff scan$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
          <send>
      QuaffScan()
          </send>
@@ -86,25 +164,100 @@ Displays live counts and interactive action buttons in a draggable miniwindow us
    <!-- Triggers to capture container inventory updates for potion counts -->
    <triggers>
       <!-- Potion bag validation triggers (disabled by default) -->
-      <trigger enabled="n" match="^(.*) \((carried|worn|link)\) :$" regexp="y" script="BagValidationSuccess" sequence="10" omit_from_output="y" group="bag_validator"></trigger>
-      <trigger enabled="n" match="^(The |A )?(.*) contains:$" regexp="y" script="BagValidationSuccess" sequence="10" omit_from_output="y" group="bag_validator"></trigger>
-      <trigger enabled="n" match="^(.*) is empty\.$" regexp="y" script="BagValidationSuccess" sequence="10" omit_from_output="y" group="bag_validator"></trigger>
-      <trigger enabled="n" match="^That container is closed\.$" regexp="y" script="BagValidationSuccess" sequence="10" omit_from_output="y" group="bag_validator"></trigger>
-      <trigger enabled="n" match="^You do not see (.*) here\.$" regexp="y" script="BagValidationFailure" sequence="10" omit_from_output="y" group="bag_validator"></trigger>
-      <trigger enabled="n" match="^That is not a container\.$" regexp="y" script="BagValidationFailure" sequence="10" omit_from_output="y" group="bag_validator"></trigger>
+      <trigger enabled="n"
+         match="^(.*) \((carried|worn|link)\) :$"
+         regexp="y"
+         script="BagValidationSuccess"
+         sequence="10"
+         omit_from_output="y"
+         group="bag_validator"></trigger>
+      <trigger enabled="n"
+         match="^(The |A )?(.*) contains:$"
+         regexp="y"
+         script="BagValidationSuccess"
+         sequence="10"
+         omit_from_output="y"
+         group="bag_validator"></trigger>
+      <trigger enabled="n"
+         match="^(.*) is empty\.$"
+         regexp="y"
+         script="BagValidationSuccess"
+         sequence="10"
+         omit_from_output="y"
+         group="bag_validator"></trigger>
+      <trigger enabled="n"
+         match="^That container is closed\.$"
+         regexp="y"
+         script="BagValidationSuccess"
+         sequence="10"
+         omit_from_output="y"
+         group="bag_validator"></trigger>
+      <trigger enabled="n"
+         match="^You do not see (.*) here\.$"
+         regexp="y"
+         script="BagValidationFailure"
+         sequence="10"
+         omit_from_output="y"
+         group="bag_validator"></trigger>
+      <trigger enabled="n"
+         match="^That is not a container\.$"
+         regexp="y"
+         script="BagValidationFailure"
+         sequence="10"
+         omit_from_output="y"
+         group="bag_validator"></trigger>
 
       <!-- Potion bag tracking triggers -->
-      <trigger enabled="y" match="^You put (\d+|a|an) (?:\* )?(.*) (in|into) (.*)\.$" regexp="y" script="HandlePutPotion" sequence="100"></trigger>
-      <trigger enabled="y" match="^You get (\d+|a|an) (?:\* )?(.*) from (.*)\.$" regexp="y" script="HandleGetPotion" sequence="100"></trigger>
-      <trigger enabled="y" match="^(The |A )?(.*) contains:$" regexp="y" script="StartBagScan" sequence="100"></trigger>
-      <trigger enabled="y" match="^(.*) \((carried|worn|link)\) :$" regexp="y" script="StartBagScan" sequence="100"></trigger>
-      <trigger enabled="y" match="^(The |A )?(.*) is empty\.$" regexp="y" script="HandleEmptyBag" sequence="100"></trigger>
-      <trigger enabled="y" match="^You can only fly there\.$" regexp="y" script="handle_fly_only" sequence="100"></trigger>
+      <trigger enabled="y"
+         match="^You put (\d+|a|an) (?:\* )?(.*) (in|into) (.*)\.$"
+         regexp="y"
+         script="HandlePutPotion"
+         sequence="100"></trigger>
+      <trigger enabled="y"
+         match="^You get (\d+|a|an) (?:\* )?(.*) from (.*)\.$"
+         regexp="y"
+         script="HandleGetPotion"
+         sequence="100"></trigger>
+      <trigger enabled="y"
+         match="^(The |A )?(.*) contains:$"
+         regexp="y"
+         script="StartBagScan"
+         sequence="100"></trigger>
+      <trigger enabled="y"
+         match="^(.*) \((carried|worn|link)\) :$"
+         regexp="y"
+         script="StartBagScan"
+         sequence="100"></trigger>
+      <trigger enabled="y"
+         match="^(The |A )?(.*) is empty\.$"
+         regexp="y"
+         script="HandleEmptyBag"
+         sequence="100"></trigger>
+      <trigger enabled="y"
+         match="^You can only fly there\.$"
+         regexp="y"
+         script="handle_fly_only"
+         sequence="100"></trigger>
 
       <!-- Bag scanner group (disabled by default) -->
-      <trigger enabled="n" match="^\s*(?:\(\s*(\d+)\))?\s*(?:\([A-Za-z0-9*]+\)\s*)*\s*(.*?)(?:\s*\(\d+\))?\s*$" regexp="y" script="ScanBagItem" sequence="100" group="bag_scanner"></trigger>
-      <trigger enabled="n" match="^.*\[\d+/\d+hp \d+/\d+mn .*\]" regexp="y" script="EndBagScan" sequence="10" group="bag_scanner"></trigger>
-      <trigger enabled="n" match="^(\s*)$" regexp="y" script="EndBagScan" sequence="10" group="bag_scanner"></trigger>
+      <trigger enabled="n"
+         match="^\s*(?:\(\s*(\d+)\))?\s*(?:\([A-Za-z0-9*]+\)\s*)*\s*(.*?)(?:\s*\(\d+\))?\s*$"
+         regexp="y"
+         script="ScanBagItem"
+         sequence="100"
+         group="bag_scanner"></trigger>
+      <trigger enabled="n"
+         match="^.*\[\d+/\d+hp \d+/\d+mn .*\]"
+         regexp="y"
+         script="EndBagScan"
+         sequence="10"
+         group="bag_scanner"></trigger>
+      <trigger enabled="n"
+         match="^(\s*)$"
+         regexp="y"
+         script="EndBagScan"
+         sequence="10"
+         group="bag_scanner"></trigger>
    </triggers>
 
    <!--  Script  -->
