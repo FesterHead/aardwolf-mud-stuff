@@ -2,25 +2,23 @@
 <!DOCTYPE muclient>
 
 <muclient>
-<plugin
-   name="Aardwolf_Combat_Actions"
-   author="FesterHead"
-   id="bc8f9a2d7e6c4b1a3f5e9d8c"
-   language="Lua"
-   purpose="Automated combat commands with death safety checks"
-   date_written="2026-06-26"
-   requires="5.06"
-   version="1.0"
-   save_state="y"
->
-<description trim="y">
+   <plugin name="Aardwolf_Combat_Actions"
+      author="FesterHead"
+      id="bc8f9a2d7e6c4b1a3f5e9d8c"
+      language="Lua"
+      purpose="Automated combat commands with death safety checks"
+      date_written="2026-06-26"
+      requires="5.06"
+      version="1.0"
+      save_state="y">
+      <description trim="y">
 Monitors Aardwolf GMCP char.status. Runs a CHANCE_TO_ACT to execute a random
 command from an approved list, with explicit checks to ensure the enemy isn't dead.
-</description>
-</plugin>
+      </description>
+   </plugin>
 
-<script>
-<![CDATA[
+   <script>
+      <![CDATA[
 require "gmcphelper"
 
 -- Configuration
@@ -85,5 +83,5 @@ function OnPluginInstall()
 end
 
 ]]>
-</script>
+   </script>
 </muclient>

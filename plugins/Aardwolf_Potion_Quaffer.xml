@@ -21,6 +21,11 @@ Displays live counts and interactive action buttons in a draggable miniwindow us
      QuaffManaPotion()
          </send>
       </alias>
+      <alias name="QuaffFlyManual" match="^pquaff (?:fly|f)$" enabled="y" regexp="y" send_to="12" sequence="100">
+         <send>
+     QuaffFlyPotion()
+         </send>
+      </alias>
       <alias name="SetPotionBag" match="^pquaff bag (.*)$" enabled="y" regexp="y" send_to="12" sequence="100">
          <send>
      SetPotionBag("%1")
@@ -56,6 +61,16 @@ Displays live counts and interactive action buttons in a draggable miniwindow us
      SetManaCmd("%1")
          </send>
       </alias>
+      <alias name="SetFlyKeys" match="^pquaff fly_keys (.*)$" enabled="y" regexp="y" send_to="12" sequence="100">
+         <send>
+     SetFlyKeys("%1")
+         </send>
+      </alias>
+      <alias name="SetFlyCmd" match="^pquaff fly_cmd (.*)$" enabled="y" regexp="y" send_to="12" sequence="100">
+         <send>
+     SetFlyCmd("%1")
+         </send>
+      </alias>
       <alias name="QuaffHelp" match="^pquaff(?: help)?$" enabled="y" regexp="y" send_to="12" sequence="100">
          <send>
      QuaffHelp()
@@ -84,6 +99,7 @@ Displays live counts and interactive action buttons in a draggable miniwindow us
       <trigger enabled="y" match="^(The |A )?(.*) contains:$" regexp="y" script="StartBagScan" sequence="100"></trigger>
       <trigger enabled="y" match="^(.*) \((carried|worn|link)\) :$" regexp="y" script="StartBagScan" sequence="100"></trigger>
       <trigger enabled="y" match="^(The |A )?(.*) is empty\.$" regexp="y" script="HandleEmptyBag" sequence="100"></trigger>
+      <trigger enabled="y" match="^You can only fly there\.$" regexp="y" script="handle_fly_only" sequence="100"></trigger>
 
       <!-- Bag scanner group (disabled by default) -->
       <trigger enabled="n" match="^\s*(?:\(\s*(\d+)\))?\s*(?:\([A-Za-z0-9*]+\)\s*)*\s*(.*?)(?:\s*\(\d+\))?\s*$" regexp="y" script="ScanBagItem" sequence="100" group="bag_scanner"></trigger>
@@ -109,12 +125,13 @@ local MANA_QUAFF_PERCENT = tonumber(GetVariable("MANA_QUAFF_PERCENT")) or 30
 -- Tracked data
 local potions = {
    healing = 0,
-   mana = 0
+   mana = 0,
+   fly = 0
 }
 
 -- Adjusted sizes up to scale elegantly with 14pt Consolas
 local default_width  = 270
-local default_height = 165
+local default_height = 190
 local default_x      = 700
 local default_y      = 200
 local LEFT_MARGIN    = 14
@@ -131,15 +148,68 @@ local silent_scan = false
 -- Hover states for interactive Monokai buttons
 local heal_hover = false
 local mana_hover = false
+local fly_hover = false
 
 local HEAL_POTION_CMD = GetVariable("HEAL_POTION_CMD") or "healing"
 local MANA_POTION_CMD = GetVariable("MANA_POTION_CMD") or "mana"
+local FLY_POTION_CMD  = GetVariable("FLY_POTION_CMD") or "griffon"
 local HEAL_POTION_KEYWORDS_LIST = {}
 local MANA_POTION_KEYWORDS_LIST = {}
+local FLY_POTION_KEYWORDS_LIST = {}
 local scanning_bag = false
 
 local last_scanned_heal_kw = nil
 local last_scanned_mana_kw = nil
+local last_scanned_fly_kw = nil
+
+local last_direction = nil
+local is_auto_sending = false
+
+local direction_map = {
+  n = "north", north = "north",
+  s = "south", south = "south",
+  e = "east", east = "east",
+  w = "west", west = "west",
+  u = "up", up = "up",
+  d = "down", down = "down",
+  ne = "northeast", northeast = "northeast",
+  nw = "northwest", northwest = "northwest",
+  se = "southeast", southeast = "southeast",
+  sw = "southwest", southwest = "southwest",
+}
+
+function OnPluginSend (sText)
+  if is_auto_sending then
+    return true
+  end
+
+  local cmd = sText:match("^%s*(.-)%s*$"):lower()
+  local direction = direction_map[cmd]
+  if not direction then
+    local dir_part = cmd:match("^go%s+(%a+)$")
+    if dir_part then
+      direction = direction_map[dir_part]
+    end
+  end
+
+  if direction then
+    last_direction = direction
+  end
+
+  return true
+end
+
+function handle_fly_only (name, line, wildcards)
+  ColourNote("cyan", "", "[Potion Quaffer] Flight required. Quaffing fly potion...")
+  QuaffFlyPotion()
+  if last_direction then
+    local dir = last_direction
+    last_direction = nil
+    is_auto_sending = true
+    Send(dir)
+    is_auto_sending = false
+  end
+end
 
 local function extract_item_keyword(item_name, ptype)
    local name_lower = string.lower(item_name)
@@ -152,6 +222,11 @@ local function extract_item_keyword(item_name, ptype)
       if string.find(name_lower, "lotus", 1, true) then return "lotus" end
       if string.find(name_lower, "refresh", 1, true) then return "refresh" end
       if string.find(name_lower, "mana", 1, true) then return "mana" end
+   elseif ptype == "fly" then
+      if string.find(name_lower, "griffon", 1, true) then return "griffon" end
+      if string.find(name_lower, "feather", 1, true) then return "feather" end
+      if string.find(name_lower, "flight", 1, true) then return "flight" end
+      if string.find(name_lower, "fly", 1, true) then return "fly" end
    end
    return nil
 end
@@ -171,6 +246,7 @@ local function update_keyword_lists()
    end
 
    local mana_str = GetVariable("MANA_POTION_KEYWORDS") or "mana,refresh,black lotus"
+   local fly_str  = GetVariable("FLY_POTION_KEYWORDS") or "griffon,feather,flight,fly"
 
    HEAL_POTION_KEYWORDS_LIST = {}
    for word in string.gmatch(heal_str, "([^,]+)") do
@@ -182,7 +258,14 @@ local function update_keyword_lists()
       table.insert(MANA_POTION_KEYWORDS_LIST, Trim(string.lower(word)))
    end
 
+   FLY_POTION_KEYWORDS_LIST = {}
+   for word in string.gmatch(fly_str, "([^,]+)") do
+      table.insert(FLY_POTION_KEYWORDS_LIST, Trim(string.lower(word)))
+   end
+
    SetVariable("HEAL_POTION_KEYWORDS", heal_str)
+   SetVariable("MANA_POTION_KEYWORDS", mana_str)
+   SetVariable("FLY_POTION_KEYWORDS", fly_str)
 end
 
 local function get_potion_type(item_name)
@@ -197,6 +280,12 @@ local function get_potion_type(item_name)
    for _, key in ipairs(MANA_POTION_KEYWORDS_LIST) do
       if string.find(name_lower, key, 1, true) then
          return "mana"
+      end
+   end
+
+   for _, key in ipairs(FLY_POTION_KEYWORDS_LIST) do
+      if string.find(name_lower, key, 1, true) then
+         return "fly"
       end
    end
 
@@ -265,6 +354,21 @@ function QuaffManaClick(flags, hotspot_id)
    return true
 end
 
+function MouseOverFly(flags, hotspot_id)
+   fly_hover = true
+   DrawWindow()
+end
+
+function MouseOutFly(flags, hotspot_id)
+   fly_hover = false
+   DrawWindow()
+end
+
+function QuaffFlyClick(flags, hotspot_id)
+   QuaffFlyPotion()
+   return true
+end
+
 function QuaffHealPotion()
    local cmd = HEAL_POTION_CMD
    if cmd == "healing" and last_scanned_heal_kw then
@@ -295,6 +399,21 @@ function QuaffManaPotion()
    DrawWindow()
 end
 
+function QuaffFlyPotion()
+   local cmd = FLY_POTION_CMD
+   if cmd == "griffon" and last_scanned_fly_kw then
+      cmd = last_scanned_fly_kw
+   end
+   if potions.fly <= 0 then
+      Note("-> [Warning]: No fly potions tracked in " .. POTION_BAG .. ". Attempting get/quaff anyway.")
+   else
+      potions.fly = math.max(0, potions.fly - 1)
+   end
+   Send(string.format("get %s '%s'", cmd, POTION_BAG))
+   Send(string.format("quaff %s", cmd))
+   DrawWindow()
+end
+
 function DrawWindow()
    local bodyleft, bodytop, bodyright, bodybottom = Theme.DrawBorder(win)
    WindowRectOp(win, 2, bodyleft, bodytop, bodyright+1, bodybottom+1, Theme.PRIMARY_BODY)
@@ -314,15 +433,20 @@ function DrawWindow()
    WindowText(win, font_id, string.format("%3d", potions.mana), LEFT_MARGIN + 190, top, 0, 0, potions.mana > 0 and 0xEFD966 or 0x7226F9)
 
    top = top + line_height
+   WindowText(win, font_id, "Fly:", LEFT_MARGIN, top, 0, 0, Theme.BODY_TEXT)
+   WindowText(win, font_id, string.format("%3d", potions.fly), LEFT_MARGIN + 190, top, 0, 0, potions.fly > 0 and 0x1F97FD or 0x7226F9)
+
+   top = top + line_height
    WindowText(win, font_id, "Bag:", LEFT_MARGIN, top, 0, 0, Theme.BODY_TEXT)
    WindowText(win, font_id, POTION_BAG, LEFT_MARGIN + 60, top, 0, 0, Theme.BODY_TEXT)
 
-   -- Monokai Spectrum Buttons
+   -- Monokai Spectrum Buttons (Heal, Mana, Fly)
    top = top + line_height + 8
    local btn_height = 28
-   local btn_width = 114
+   local btn_width = 72
+   local btn_gap = 13
 
-   -- Heal Button (Monokai Green #A6E22E -> BGR 0x2EE2A6)
+   -- Heal Button (Monokai Green #A6E22E -> BGR 0x2EE2A6) - label "Heal"
    local heal_left = LEFT_MARGIN
    local heal_right = heal_left + btn_width
    local heal_bg = heal_hover and 0x1A4232 or 0x10271E
@@ -332,7 +456,7 @@ function DrawWindow()
    WindowRectOp(win, miniwin.rect_fill, heal_left, top, heal_right, top + btn_height, heal_bg)
    WindowRectOp(win, miniwin.rect_frame, heal_left, top, heal_right, top + btn_height, heal_border)
 
-   local heal_text = "Quaff Heal"
+   local heal_text = "Heal"
    local heal_text_w = WindowTextWidth(win, font_id, heal_text)
    local heal_text_x = heal_left + math.floor((btn_width - heal_text_w) / 2)
    local heal_text_y = top + math.floor((btn_height - WindowFontInfo(win, font_id, 1)) / 2)
@@ -353,8 +477,8 @@ function DrawWindow()
       )
    end
 
-   -- Mana Button (Monokai Cyan #66D9EF -> BGR 0xEFD966)
-   local mana_left = heal_right + 14
+   -- Mana Button (Monokai Cyan #66D9EF -> BGR 0xEFD966) - label "Mana"
+   local mana_left = heal_right + btn_gap
    local mana_right = mana_left + btn_width
    local mana_bg = mana_hover and 0x473A1E or 0x2B2311
    local mana_border = 0xEFD966
@@ -363,7 +487,7 @@ function DrawWindow()
    WindowRectOp(win, miniwin.rect_fill, mana_left, top, mana_right, top + btn_height, mana_bg)
    WindowRectOp(win, miniwin.rect_frame, mana_left, top, mana_right, top + btn_height, mana_border)
 
-   local mana_text = "Quaff Mana"
+   local mana_text = "Mana"
    local mana_text_w = WindowTextWidth(win, font_id, mana_text)
    local mana_text_x = mana_left + math.floor((btn_width - mana_text_w) / 2)
    local mana_text_y = top + math.floor((btn_height - WindowFontInfo(win, font_id, 1)) / 2)
@@ -379,6 +503,37 @@ function DrawWindow()
          "", "",
          "QuaffManaClick",
          "Click to quaff a Mana potion (pquaff mana)",
+         1,
+         0
+      )
+   end
+
+   -- Fly Button (Monokai Orange #FD971F -> BGR 0x1F97FD) - label "Fly"
+   local fly_left = mana_right + btn_gap
+   local fly_right = fly_left + btn_width
+   local fly_bg = fly_hover and 0x1A3860 or 0x102540
+   local fly_border = 0x1F97FD
+   local fly_text_color = fly_hover and 0xFFFFFF or 0x1F97FD
+
+   WindowRectOp(win, miniwin.rect_fill, fly_left, top, fly_right, top + btn_height, fly_bg)
+   WindowRectOp(win, miniwin.rect_frame, fly_left, top, fly_right, top + btn_height, fly_border)
+
+   local fly_text = "Fly"
+   local fly_text_w = WindowTextWidth(win, font_id, fly_text)
+   local fly_text_x = fly_left + math.floor((btn_width - fly_text_w) / 2)
+   local fly_text_y = top + math.floor((btn_height - WindowFontInfo(win, font_id, 1)) / 2)
+   WindowText(win, font_id, fly_text, fly_text_x, fly_text_y, fly_right, top + btn_height, fly_text_color)
+
+   if WindowHotspotInfo(win, "btn_quaff_fly", 1) == nil then
+      WindowAddHotspot(
+         win,
+         "btn_quaff_fly",
+         fly_left, top, fly_right, top + btn_height,
+         "MouseOverFly",
+         "MouseOutFly",
+         "", "",
+         "QuaffFlyClick",
+         "Click to quaff a Fly potion (pquaff fly)",
          1,
          0
       )
@@ -464,6 +619,7 @@ function HandleEmptyBag(name, line, wildcards)
    if string.find(string.lower(matched_bag), string.lower(POTION_BAG), 1, true) then
       potions.healing = 0
       potions.mana = 0
+      potions.fly = 0
       DrawWindow()
       if silent_scan then
          DeleteLines(1)
@@ -479,6 +635,7 @@ function StartBagScan(name, line, wildcards)
       scanning_bag = true
       potions.healing = 0
       potions.mana = 0
+      potions.fly = 0
       EnableTriggerGroup("bag_scanner", true)
       if silent_scan then
          DeleteLines(1)
@@ -507,6 +664,7 @@ function ScanBagItem(name, line, wildcards)
       if kw then
          if ptype == "healing" then last_scanned_heal_kw = kw end
          if ptype == "mana" then last_scanned_mana_kw = kw end
+         if ptype == "fly" then last_scanned_fly_kw = kw end
       end
    end
 end
@@ -531,8 +689,10 @@ function OnPluginSaveState()
    SetVariable("MANA_QUAFF_PERCENT", tostring(MANA_QUAFF_PERCENT))
    SetVariable("HEAL_POTION_KEYWORDS", GetVariable("HEAL_POTION_KEYWORDS") or "healing,heal,cure,light relief,serious relief,critical care,honey")
    SetVariable("MANA_POTION_KEYWORDS", GetVariable("MANA_POTION_KEYWORDS") or "mana,refresh,black lotus")
+   SetVariable("FLY_POTION_KEYWORDS", GetVariable("FLY_POTION_KEYWORDS") or "griffon,feather,flight,fly")
    SetVariable("HEAL_POTION_CMD", HEAL_POTION_CMD)
    SetVariable("MANA_POTION_CMD", MANA_POTION_CMD)
+   SetVariable("FLY_POTION_CMD", FLY_POTION_CMD)
 end
 
 function SetPotionBag(new_bag)
@@ -607,6 +767,13 @@ function SetManaKeys(keys_str)
    Note("-> Potion mana keywords updated to: " .. keys_str)
 end
 
+function SetFlyKeys(keys_str)
+   SetVariable("FLY_POTION_KEYWORDS", keys_str)
+   update_keyword_lists()
+   SaveState()
+   Note("-> Potion fly keywords updated to: " .. keys_str)
+end
+
 function SetHealCmd(cmd)
    HEAL_POTION_CMD = Trim(cmd)
    SaveState()
@@ -619,9 +786,16 @@ function SetManaCmd(cmd)
    Note("-> Potion mana command keyword set to: " .. MANA_POTION_CMD)
 end
 
+function SetFlyCmd(cmd)
+   FLY_POTION_CMD = Trim(cmd)
+   SaveState()
+   Note("-> Potion fly command keyword set to: " .. FLY_POTION_CMD)
+end
+
 function QuaffHelp()
    local heal_keys = GetVariable("HEAL_POTION_KEYWORDS") or "healing,heal,cure,light relief,serious relief,critical care"
    local mana_keys = GetVariable("MANA_POTION_KEYWORDS") or "mana,refresh,black lotus"
+   local fly_keys  = GetVariable("FLY_POTION_KEYWORDS")  or "griffon,feather,flight,fly"
 
    ColourNote("#808080", "", "\n+=================================================================+")
    ColourNote("#A6E22E", "", "    Aardwolf Potion Quaffer v1.1 Help Menu")
@@ -631,19 +805,23 @@ function QuaffHelp()
    ColourNote("#66D9EF", "", "  Commands:")
    ColourNote("#E6DB74", "", "    pquaff heal / pquaff h  ", "#F8F8F2", "", "- Manually get and quaff a healing potion")
    ColourNote("#E6DB74", "", "    pquaff mana / pquaff m  ", "#F8F8F2", "", "- Manually get and quaff a mana potion")
+   ColourNote("#E6DB74", "", "    pquaff fly / pquaff f   ", "#F8F8F2", "", "- Manually get and quaff a fly potion")
    ColourNote("#E6DB74", "", "    pquaff bag <bag>        ", "#F8F8F2", "", "- Set/validate container (current: " .. POTION_BAG .. ")")
    ColourNote("#E6DB74", "", "    pquaff hp <%>           ", "#F8F8F2", "", "- Set HP threshold percentage (current: " .. HP_QUAFF_PERCENT .. "%)")
    ColourNote("#E6DB74", "", "    pquaff mana <%>         ", "#F8F8F2", "", "- Set Mana threshold percentage (current: " .. MANA_QUAFF_PERCENT .. "%)")
    ColourNote("#E6DB74", "", "    pquaff heal_keys <keys> ", "#F8F8F2", "", "- Substrings to scan heal potions")
    ColourNote("#E6DB74", "", "    pquaff mana_keys <keys> ", "#F8F8F2", "", "- Substrings to scan mana potions")
+   ColourNote("#E6DB74", "", "    pquaff fly_keys <keys>  ", "#F8F8F2", "", "- Substrings to scan fly potions")
    ColourNote("#E6DB74", "", "    pquaff heal_cmd <kw>    ", "#F8F8F2", "", "- Command used to get/quaff heal (current: " .. HEAL_POTION_CMD .. ")")
    ColourNote("#E6DB74", "", "    pquaff mana_cmd <kw>    ", "#F8F8F2", "", "- Command used to get/quaff mana (current: " .. MANA_POTION_CMD .. ")")
+   ColourNote("#E6DB74", "", "    pquaff fly_cmd <kw>     ", "#F8F8F2", "", "- Command used to get/quaff fly (current: " .. FLY_POTION_CMD .. ")")
    ColourNote("#E6DB74", "", "    pquaff scan             ", "#F8F8F2", "", "- Silently scan and sync bag potion counts")
    ColourNote("#E6DB74", "", "    pquaff help / pquaff    ", "#F8F8F2", "", "- Show this help menu")
    ColourNote("#808080", "", "-------------------------------------------------------------------")
    ColourNote("#66D9EF", "", "  Current Keywords Configuration:")
    ColourNote("#F8F8F2", "", "    Heal Match Keys : " .. heal_keys)
    ColourNote("#F8F8F2", "", "    Mana Match Keys : " .. mana_keys)
+   ColourNote("#F8F8F2", "", "    Fly Match Keys  : " .. fly_keys)
    ColourNote("#808080", "", "+=================================================================+\n")
 end
 

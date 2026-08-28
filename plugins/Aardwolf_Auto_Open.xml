@@ -2,51 +2,43 @@
 <!DOCTYPE muclient>
 
 <muclient>
-<plugin
-   name="Aardwolf_Auto_Open"
-   author="FesterHead"
-   id="ab8c9d2e7f6a4b1c3d5e9f8a"
-   language="Lua"
-   purpose="Automatically opens closed doors when attempting to move"
-   date_written="2026-06-27"
-   requires="5.06"
-   version="1.0"
-   save_state="y"
->
-<description trim="y">
+  <plugin name="Aardwolf_Auto_Open"
+    author="FesterHead"
+    id="ab8c9d2e7f6a4b1c3d5e9f8a"
+    language="Lua"
+    purpose="Automatically opens closed doors when attempting to move"
+    date_written="2026-06-27"
+    requires="5.06"
+    version="1.0"
+    save_state="y">
+    <description trim="y">
 Automatically opens doors, gates, walls, and other barriers when you try to walk in a direction and they are closed.
-</description>
-</plugin>
+    </description>
+  </plugin>
 
-<triggers>
-  <trigger
-   enabled="y"
-   match="^The (.+?) is closed\.$"
-   regexp="y"
-   script="handle_closed_door"
-   sequence="100"
-  >
-  </trigger>
-  <trigger
-   enabled="y"
-   match="^You do not have (?:a|the) key\b.*$"
-   regexp="y"
-   script="handle_locked_or_no_key"
-   sequence="100"
-  >
-  </trigger>
-  <trigger
-   enabled="y"
-   match="^(?:It|That) is locked\.$"
-   regexp="y"
-   script="handle_locked_or_no_key"
-   sequence="100"
-  >
-  </trigger>
-</triggers>
+  <triggers>
+    <trigger enabled="y"
+      match="^The (.+?) is closed\.$"
+      regexp="y"
+      script="handle_closed_door"
+      sequence="100">
+    </trigger>
+    <trigger enabled="y"
+      match="^You do not have (?:a|the) key\b.*$"
+      regexp="y"
+      script="handle_locked_or_no_key"
+      sequence="100">
+    </trigger>
+    <trigger enabled="y"
+      match="^(?:It|That) is locked\.$"
+      regexp="y"
+      script="handle_locked_or_no_key"
+      sequence="100">
+    </trigger>
+  </triggers>
 
-<script>
-<![CDATA[
+  <script>
+    <![CDATA[
 local last_direction = nil
 local is_auto_sending = false
 
@@ -116,5 +108,5 @@ function OnPluginInstall()
    Note("-> Auto Open Doors Plugin Loaded.")
 end
 ]]>
-</script>
+  </script>
 </muclient>

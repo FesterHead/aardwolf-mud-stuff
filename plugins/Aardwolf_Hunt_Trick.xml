@@ -2,239 +2,199 @@
 <!DOCTYPE muclient>
 
 <muclient>
-<plugin
-   name="Aardwolf_Hunt_Trick"
-   author="FesterHead"
-   id="a7e8b9c0d1e2f3a4b5c6d7e8"
-   language="Lua"
-   purpose="Automated hunt-stepping and campaign hunt-trick target locator"
-   date_written="2026-08-26"
-   requires="5.06"
-   version="1.0"
-   save_state="y"
->
-<description trim="y">
+   <plugin name="Aardwolf_Hunt_Trick"
+      author="FesterHead"
+      id="a7e8b9c0d1e2f3a4b5c6d7e8"
+      language="Lua"
+      purpose="Automated hunt-stepping and campaign hunt-trick target locator"
+      date_written="2026-08-26"
+      requires="5.06"
+      version="1.0"
+      save_state="y">
+      <description trim="y">
 Automates target hunting and campaign hunt-trick mob index scanning.
 Uses non-conflicting command prefix 'phunt' and shortcut 'phtrick'.
-</description>
-</plugin>
+      </description>
+   </plugin>
 
-<aliases>
-  <alias
-   name="PHuntStepCmd"
-   match="^phunt step (.*)$"
-   enabled="y"
-   regexp="y"
-   send_to="12"
-   sequence="100"
-  >
-  <send>
+   <aliases>
+      <alias name="PHuntStepCmd"
+         match="^phunt step (.*)$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
+         <send>
      PHuntStep("%1")
-  </send>
-  </alias>
+         </send>
+      </alias>
 
-  <alias
-   name="PHuntTrickCmd"
-   match="^(?:phunt trick|phtrick) (.*)$"
-   enabled="y"
-   regexp="y"
-   send_to="12"
-   sequence="100"
-  >
-  <send>
+      <alias name="PHuntTrickCmd"
+         match="^(?:phunt trick|phtrick) (.*)$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
+         <send>
      PHuntTrick("%1")
-  </send>
-  </alias>
+         </send>
+      </alias>
 
-  <alias
-   name="PHuntStopCmd"
-   match="^phunt (?:stop|abort)$"
-   enabled="y"
-   regexp="y"
-   send_to="12"
-   sequence="100"
-  >
-  <send>
+      <alias name="PHuntStopCmd"
+         match="^phunt (?:stop|abort)$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
+         <send>
      PHuntStop()
-  </send>
-  </alias>
+         </send>
+      </alias>
 
-  <alias
-   name="PHuntMaxCmd"
-   match="^phunt max (\d+)$"
-   enabled="y"
-   regexp="y"
-   send_to="12"
-   sequence="100"
-  >
-  <send>
+      <alias name="PHuntMaxCmd"
+         match="^phunt max (\d+)$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
+         <send>
      SetMaxTrickCount(tonumber("%1"))
-  </send>
-  </alias>
+         </send>
+      </alias>
 
-  <alias
-   name="PHuntHelpCmd"
-   match="^phunt(?: help)?$"
-   enabled="y"
-   regexp="y"
-   send_to="12"
-   sequence="100"
-  >
-  <send>
+      <alias name="PHuntHelpCmd"
+         match="^phunt(?: help)?$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="100">
+         <send>
      PHuntHelp()
-  </send>
-  </alias>
+         </send>
+      </alias>
 
-  <alias
-   name="PHuntDefaultMatch"
-   match="^phunt (?!step|trick|stop|abort|max|help)(.*)$"
-   enabled="y"
-   regexp="y"
-   send_to="12"
-   sequence="110"
-  >
-  <send>
+      <alias name="PHuntDefaultMatch"
+         match="^phunt (?!step|trick|stop|abort|max|help)(.*)$"
+         enabled="y"
+         regexp="y"
+         send_to="12"
+         sequence="110">
+         <send>
      PHuntStep("%1")
-  </send>
-  </alias>
-</aliases>
+         </send>
+      </alias>
+   </aliases>
 
-<triggers>
-  <!-- Direction Triggers (Group: hunt_trick_triggers, Disabled by default) -->
-  <trigger
-   enabled="n"
-   group="hunt_trick_triggers"
-   keep_evaluating="y"
-   match="^You are confident that (.*?) passed through here, heading (.*?)\.$"
-   regexp="y"
-   script="HandleHuntDirection"
-   sequence="100"
-  ></trigger>
+   <triggers>
+      <!-- Direction Triggers (Group: hunt_trick_triggers, Disabled by default) -->
+      <trigger enabled="n"
+         group="hunt_trick_triggers"
+         keep_evaluating="y"
+         match="^You are confident that (.*?) passed through here, heading (.*?)\.$"
+         regexp="y"
+         script="HandleHuntDirection"
+         sequence="100"></trigger>
 
-  <trigger
-   enabled="n"
-   group="hunt_trick_triggers"
-   keep_evaluating="y"
-   match="^The trail of (.*?) is confusing, but you're reasonably sure (.*?) headed (.*?)\.$"
-   regexp="y"
-   script="HandleHuntDirection"
-   sequence="100"
-  ></trigger>
+      <trigger enabled="n"
+         group="hunt_trick_triggers"
+         keep_evaluating="y"
+         match="^The trail of (.*?) is confusing, but you're reasonably sure (.*?) headed (.*?)\.$"
+         regexp="y"
+         script="HandleHuntDirection"
+         sequence="100"></trigger>
 
-  <trigger
-   enabled="n"
-   group="hunt_trick_triggers"
-   keep_evaluating="y"
-   match="^The trail of (.*?) is confusing, but you're reasonably sure (.*?) is (.*?)\.$"
-   regexp="y"
-   script="HandleHuntDirection"
-   sequence="100"
-  ></trigger>
+      <trigger enabled="n"
+         group="hunt_trick_triggers"
+         keep_evaluating="y"
+         match="^The trail of (.*?) is confusing, but you're reasonably sure (.*?) is (.*?)\.$"
+         regexp="y"
+         script="HandleHuntDirection"
+         sequence="100"></trigger>
 
-  <trigger
-   enabled="n"
-   group="hunt_trick_triggers"
-   keep_evaluating="y"
-   match="^You are almost certain that (.*?) is (.*?) from here\.$"
-   regexp="y"
-   script="HandleHuntDirection"
-   sequence="100"
-  ></trigger>
+      <trigger enabled="n"
+         group="hunt_trick_triggers"
+         keep_evaluating="y"
+         match="^You are almost certain that (.*?) is (.*?) from here\.$"
+         regexp="y"
+         script="HandleHuntDirection"
+         sequence="100"></trigger>
 
-  <trigger
-   enabled="n"
-   group="hunt_trick_triggers"
-   keep_evaluating="y"
-   match="^You are certain that (.*?) is (.*?) from here\.$"
-   regexp="y"
-   script="HandleHuntDirection"
-   sequence="100"
-  ></trigger>
+      <trigger enabled="n"
+         group="hunt_trick_triggers"
+         keep_evaluating="y"
+         match="^You are certain that (.*?) is (.*?) from here\.$"
+         regexp="y"
+         script="HandleHuntDirection"
+         sequence="100"></trigger>
 
-  <trigger
-   enabled="n"
-   group="hunt_trick_triggers"
-   keep_evaluating="y"
-   match="^You have no idea what you're doing, but maybe (.*?) is (.*?)\?$"
-   regexp="y"
-   script="HandleHuntDirection"
-   sequence="100"
-  ></trigger>
+      <trigger enabled="n"
+         group="hunt_trick_triggers"
+         keep_evaluating="y"
+         match="^You have no idea what you're doing, but maybe (.*?) is (.*?)\?$"
+         regexp="y"
+         script="HandleHuntDirection"
+         sequence="100"></trigger>
 
-  <trigger
-   enabled="n"
-   group="hunt_trick_triggers"
-   keep_evaluating="y"
-   match="^You have no idea what you're doing, but maybe (.*?) left (.*?)\?$"
-   regexp="y"
-   script="HandleHuntDirection"
-   sequence="100"
-  ></trigger>
+      <trigger enabled="n"
+         group="hunt_trick_triggers"
+         keep_evaluating="y"
+         match="^You have no idea what you're doing, but maybe (.*?) left (.*?)\?$"
+         regexp="y"
+         script="HandleHuntDirection"
+         sequence="100"></trigger>
 
-  <trigger
-   enabled="n"
-   group="hunt_trick_triggers"
-   keep_evaluating="y"
-   match="^There are traces of (.*?) having been here\. Perhaps they lead (.*?)\?$"
-   regexp="y"
-   script="HandleHuntDirection"
-   sequence="100"
-  ></trigger>
+      <trigger enabled="n"
+         group="hunt_trick_triggers"
+         keep_evaluating="y"
+         match="^There are traces of (.*?) having been here\. Perhaps they lead (.*?)\?$"
+         regexp="y"
+         script="HandleHuntDirection"
+         sequence="100"></trigger>
 
-  <!-- Status & Completion Triggers -->
-  <trigger
-   enabled="n"
-   group="hunt_trick_triggers"
-   keep_evaluating="y"
-   match="^(.*?) is here\!$"
-   regexp="y"
-   script="HandleTargetHere"
-   sequence="100"
-  ></trigger>
+      <!-- Status & Completion Triggers -->
+      <trigger enabled="n"
+         group="hunt_trick_triggers"
+         keep_evaluating="y"
+         match="^(.*?) is here\!$"
+         regexp="y"
+         script="HandleTargetHere"
+         sequence="100"></trigger>
 
-  <trigger
-   enabled="n"
-   group="hunt_trick_triggers"
-   keep_evaluating="y"
-   match="^You couldn't find a path to (.*?) from here\.$"
-   regexp="y"
-   script="HandleNoPath"
-   sequence="100"
-  ></trigger>
+      <trigger enabled="n"
+         group="hunt_trick_triggers"
+         keep_evaluating="y"
+         match="^You couldn't find a path to (.*?) from here\.$"
+         regexp="y"
+         script="HandleNoPath"
+         sequence="100"></trigger>
 
-  <trigger
-   enabled="n"
-   group="hunt_trick_triggers"
-   keep_evaluating="y"
-   match="^No one in this area by the name '(.*)'\.$"
-   regexp="y"
-   script="HandleNoOneInArea"
-   sequence="100"
-  ></trigger>
+      <trigger enabled="n"
+         group="hunt_trick_triggers"
+         keep_evaluating="y"
+         match="^No one in this area by the name '(.*)'\.$"
+         regexp="y"
+         script="HandleNoOneInArea"
+         sequence="100"></trigger>
 
-  <trigger
-   enabled="n"
-   group="hunt_trick_triggers"
-   keep_evaluating="y"
-   match="^You seem unable to hunt that target for some reason\.$"
-   regexp="y"
-   script="HandleUnableToHunt"
-   sequence="100"
-  ></trigger>
+      <trigger enabled="n"
+         group="hunt_trick_triggers"
+         keep_evaluating="y"
+         match="^You seem unable to hunt that target for some reason\.$"
+         regexp="y"
+         script="HandleUnableToHunt"
+         sequence="100"></trigger>
 
-  <trigger
-   enabled="n"
-   group="hunt_trick_triggers"
-   keep_evaluating="y"
-   match="^The (.*?) is closed\.$"
-   regexp="y"
-   script="HandleClosedDoor"
-   sequence="100"
-  ></trigger>
-</triggers>
+      <trigger enabled="n"
+         group="hunt_trick_triggers"
+         keep_evaluating="y"
+         match="^The (.*?) is closed\.$"
+         regexp="y"
+         script="HandleClosedDoor"
+         sequence="100"></trigger>
+   </triggers>
 
-<script>
-<![CDATA[
+   <script>
+      <![CDATA[
 -- ============================================================================
 -- STATE & CONFIGURATION
 -- ============================================================================
@@ -426,5 +386,5 @@ function PHuntHelp()
    ColourNote("#808080", "", "+=================================================================+\n")
 end
 ]]>
-</script>
+   </script>
 </muclient>

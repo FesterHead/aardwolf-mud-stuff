@@ -1,0 +1,735 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+<!-- MuClient version 5.07-pre -->
+
+<!-- Updates Made by FesterHead
+	 1) Fixed color code display
+     2) Display with line breasks instead of one giant lineZ
+-->
+
+<muclient>
+    <plugin name="l33t_aarch_reporter"
+        author="Ruhamah"
+        id="1337a53a355f869f61b200ee"
+        language="Lua"
+        purpose="Report which Aarchaeology item numbers you are missing"
+        save_state="y"
+        date_written="2019-12-16 01:33:37"
+        requires="4.76"
+        version="0.11">
+        <description trim="y">
+            <![CDATA[
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+l33t_aarch_reporter (v0.09) by Ruhamah (https://aard.l33t.xyz)
+
+l33t Aarchaeology Report analyzes a container that you specify and
+generates a variety of reports.
+
+Usage:
+
+  l33t aarch                     - Displays help or Aarchaeology report
+                                   if <containerId> is set
+  l33t aarch help                - Displays help
+  l33t aarch <containerId>       - Sets the <containerId> for Aarchaeology
+                                   reports and run the report
+  report aarch extras [channel]  - Reports to [channel or says the Aarchaeology
+                                   items you have that are extras
+  report aarch missing [channel] - Reports to [channel] or says the Aarchaelogy
+                                   items that you are missing
+  report aarch pieces [channel]  - Reports to [channel] or says the Aarchaelogy
+                                   items that you have
+  report aarch turnin [channel]  - Reports to [channel] or says the Aarchaelogy
+                                   items that you need to turn in now
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+]]>
+        </description>
+
+    </plugin>
+
+    <!--  Get our standard constants -->
+
+    <include name="constants.lua"/>
+
+    <!--  Triggers  -->
+
+    <triggers>
+        <trigger enabled="n"
+            group="l33t"
+            match="^(?P<itemId>\d+),(?P<itemFlags>N?K?M?G?H?),(?P<itemName>.*),(?P<level>\d+),(?P<itemType>\d{1,2}),(?P<isUnique>1|0),(?P<wearLoc>-?\d+),(?P<timer>-?\d+)$"
+            name="l33t_aarch_invdata_item"
+            omit_from_output="y"
+            regexp="y"
+            script="l33t_aarch_invdata_item"
+            sequence="100">
+        </trigger>
+    </triggers>
+
+    <!--  Aliases  -->
+
+    <aliases>
+        <alias enabled="y"
+            group="l33t"
+            match="^l33t aarch ?(?P<containerId>\d*)$"
+            name="l33t_aarch_reporter"
+            regexp="y"
+            script="l33t_aarch_reporter"
+            sequence="100">
+        </alias>
+        <alias enabled="y"
+            group="l33t"
+            match="^report aarch ?(?P<mode>(extras?)|(pieces)|(missing)|(turnin)) ?(?P<channel>.*)$"
+            name="l33t_aarch_report_channel"
+            regexp="y"
+            script="reportAarch"
+            sequence="101">
+        </alias>
+        <!--  Plugin help  -->
+        <alias group="l33t"
+            script="OnHelp"
+            match="l33t_aarch_reporter:help"
+            enabled="y"
+            sequence="999">
+        </alias>
+        <alias group="l33t"
+            script="OnHelp"
+            match="^l33t aarch.*$"
+            enabled="y"
+            regexp="y"
+            sequence="999">
+        </alias>
+        <alias group="l33t"
+            script="OnHelp"
+            match="^report aarch.*$"
+            enabled="y"
+            regexp="y"
+            sequence="999">
+        </alias>
+    </aliases>
+
+    <!--  Script  -->
+
+    <script>
+        <![CDATA[
+
+local AardColors = {
+  r = "red", R = "lightred",
+  g = "green", G = "lightgreen",
+  y = "brown", Y = "yellow",
+  b = "blue", B = "lightblue",
+  m = "magenta", M = "lightmagenta",
+  c = "cyan", C = "lightcyan",
+  w = "lightgray", W = "white",
+  D = "gray", k = "black"
+}
+
+-- Option A: 2-column layout (Cleanest & compact)
+function PrintAardText(text)
+  if not text or text == "" then
+    Note("")
+    return
+  end
+
+  local items = {}
+  for item in string.gmatch(text, "([^,]+)") do
+    local clean_item = item:match("^%s*(.-)%s*$")
+    if clean_item and #clean_item > 0 then
+      table.insert(items, clean_item)
+    end
+  end
+
+  local function printSegment(str)
+    local current_fg = "lightgray"
+    local current_bg = "black"
+    for chunk in string.gmatch(str .. "@w", "(.-)@([a-zA-Z])") do
+      local s, code = string.match(chunk, "(.*)@(.*)")
+      s = s or chunk
+      if #s > 0 then
+        ColourTell(current_fg, current_bg, s)
+      end
+      if code and AardColors[code] then
+        current_fg = AardColors[code]
+      end
+    end
+  end
+
+  for _, itm in ipairs(items) do
+    ColourTell("white", "black", "  * ")
+    printSegment(itm)
+    Note("")
+  end
+  Note("")
+end
+
+-- Globals
+
+PLUGIN_ID = GetPluginID()
+PLUGIN_NAME = GetPluginInfo(PLUGIN_ID, 1)
+PLUGIN_AUTHOR = GetPluginInfo(PLUGIN_ID, 2)
+PLUGIN_VERSION = GetPluginInfo(PLUGIN_ID, 19)
+PLUGIN_NUM_TRIGGERS = GetPluginInfo(PLUGIN_ID, 9)
+PLUGIN_NUM_ALIASES = GetPluginInfo(PLUGIN_ID, 10)
+PLUGIN_NUM_TIMERS = GetPluginInfo(PLUGIN_ID, 11)
+
+PLUGIN_URL = 'https://aard.l33t.xyz'
+
+
+-- Script Locals
+
+
+reportMode = 0
+reportChannel = ''
+aarchItems = {}
+aarchPamphlets = {}
+aarchCollected = {}  -- pieces AND pamphlets
+
+-- Obtain list via `help aarch rewards`
+AARCH_ITEM_NUM_MAP = {
+    ["Johnny's Appleseed"] = 1,
+    ['An Ancient Skull'] = 2,
+    ['A Golden Truffle'] = 3,
+    ['An Ancient Game Token'] = 4,
+    ["Neptune's Retired Staff"] = 5,
+    ["Percival's Retired Crown"] = 6,
+    ['Photo of an F1 Tornado'] = 7,
+    ['A Ring of Thandeld'] = 8,
+    ['Petrified Volcano Ash'] = 9,
+    ["An Old Coyote's Tooth"] = 10,
+    ["Dorothy's Lost Earring"] = 11,
+    ['A Golden Cross'] = 12,
+    ['Skeleton of a Goblin'] = 13,
+    ['A Rusted Coin'] = 14,
+    ['A Rusted Trumpet'] = 15,
+    ['A Coffin Lid'] = 16,
+    ['A Wedding Ring'] = 17,
+    ['A Dinosaur Bone'] = 18,
+    ["A Dragon's Tooth"] = 19,
+    ['Unknown Element'] = 20,
+    ['A Destroyed Mosaic'] = 21,
+    ['A Silver Cross'] = 22,
+    ['Lost Binoculars'] = 23,
+    ["Pirate's Hat"] = 24,
+    ['A Rusted Cleaver'] = 25,
+    ['Wilted Rose'] = 26,
+    ['Casino Chip'] = 27,
+    ["Torn Visitor's Pass"] = 28,
+    ['Ten-year-old Textbook'] = 29,
+    ['Ivory Tusks'] = 30,
+    ['An Oasis'] = 31,
+    ['Skeleton of a Monkey'] = 32,
+    ['An Ancient Stalactite'] = 33,
+    ['Shoes of a Gnome'] = 34,
+    ['A Torn Peace Agreement'] = 35,
+    ['Chunk of an Iceberg'] = 36,
+    ['Wings of a Harpy'] = 37,
+    ['Petrified Tree Branch'] = 38,
+    ['A Golden Leaf'] = 39,
+    ['Writings of a Dream'] = 40,
+    ['An Old Rope'] = 41,
+    ['A Broken Twig'] = 42,
+    ['Brick from a Castle'] = 43,
+    ['A Rusted Belt Buckle'] = 44,
+    ['A Biblical Textbook'] = 45,
+    ['Frozen Flames'] = 46,
+    ['Fox Tooth'] = 47,
+    ['Picture of a Forest'] = 48,
+    ['Moon in a Bottle'] = 49,
+    ['Rotting Reed'] = 50
+}
+
+AARCH_NUM_ITEM_MAP = {}
+
+-- build AARCH_NUM_ITEM_MAP
+for name, num in pairs(AARCH_ITEM_NUM_MAP) do
+    AARCH_NUM_ITEM_MAP[num] = name
+end
+
+
+-- Core Functions
+
+
+function l33t_aarch_reporter(name, line, wildcards)
+    local rawContainerId = GetAliasWildcard(name, 'containerId')
+    local inputContainerId = rawContainerId and tonumber(rawContainerId) or nil
+
+    local savedContainerId = GetVariable('l33t_aarch_container_id')
+
+    if inputContainerId then
+        setAarchContainerId(inputContainerId)
+    end
+
+    local containerId = inputContainerId or savedContainerId
+
+    if containerId == nil then
+        PrintAardText('No <containerId> specified.\n')
+        OnHelp()
+    else
+        reportMode = 0
+        prepareAarchReport(containerId)
+    end
+end
+
+
+function reportAarch(name, line, wildcards)
+    local savedContainerId = GetVariable('l33t_aarch_container_id')
+
+    if savedContainerId == nil then
+        PrintAardText('No <containerId> set.\n')
+        OnHelp()
+    else
+       local inputMode = GetAliasWildcard(name, 'mode')
+       local inputChannel = GetAliasWildcard(name, 'channel')
+       local channel = string.len(inputChannel) > 0 and inputChannel or 'say'
+
+
+       if inputMode == 'extra' then
+           inputMode = 'extras'  -- normalize 'extra' to 'extras'
+       end
+
+       reportMode = inputMode
+       reportChannel = channel
+
+       prepareAarchReport(savedContainerId)
+    end
+end
+
+
+-- Helper Functions
+
+
+function prepareAarchReport(containerId)
+    local triggerName = 'l33t_aarch_invdata_start'
+    local matchText = '^{invdata ' .. containerId .. '}$'
+    local responseText = ''
+    local flags = trigger_flag.Enabled + trigger_flag.RegularExpression + trigger_flag.OneShot + trigger_flag.OmitFromOutput
+    local color = custom_colour.NoChange
+    local wildcard = 0
+    local soundFileName = ''
+    local scriptName = 'startCapturingInvdata'
+
+    AddTrigger(
+        triggerName,
+        matchText,
+        responseText,
+        flags,
+        color,
+        wildcard,
+        soundFileName,
+        scriptName
+    )
+
+    local triggerName = 'l33t_aarch_invdata_end'
+    local matchText = '^{/invdata}$'
+    local responseText = ''
+    local flags = trigger_flag.Enabled + trigger_flag.RegularExpression + trigger_flag.OneShot + trigger_flag.OmitFromOutput
+    local color = custom_colour.NoChange
+    local wildcard = 0
+    local soundFileName = ''
+    local scriptName = 'stopCapturingInvdata'
+    AddTrigger(
+        triggerName,
+        matchText,
+        responseText,
+        flags,
+        color,
+        wildcard,
+        soundFileName,
+        scriptName
+    )
+
+    SendNoEcho('invdata ' .. containerId)
+end
+
+
+function setAarchContainerId(containerId)
+    PrintAardText('Setting Aarchaeology container id to ' .. containerId)
+    SetVariable('l33t_aarch_container_id', containerId)
+end
+
+
+function l33t_aarch_invdata_item(name, line, wildcards)
+    local itemId = tonumber(GetTriggerWildcard(name, 'itemId'))
+    local itemFlags = GetTriggerWildcard(name, 'itemFlags')
+    local itemName = GetTriggerWildcard(name, 'itemName')
+    local level = tonumber(GetTriggerWildcard(name, 'level'))
+    local itemType = tonumber(GetTriggerWildcard(name, 'itemType'))
+    local isUnique = tonumber(GetTriggerWildcard(name, 'isUnique'))
+    local wearLoc = tonumber(GetTriggerWildcard(name, 'wearLoc'))
+    local timer = tonumber(GetTriggerWildcard(name, 'timer'))
+
+    --PrintAardText(itemId .. itemFlags .. itemName .. level .. itemType .. isUnique .. wearLoc .. timer)
+
+    if itemType == 6 then  -- is Special item
+       -- Green parentheses
+       local aarchItemIndexStart, aarchItemIndexEnd = string.find(itemName, '@R%(@YAarchaeology@R%)')
+       local isAarchItem = aarchItemIndexStart == 1 and aarchItemIndexEnd ~= nil
+
+       -- Red parentheses
+       local aarchPamphIndexStart, aarchPamphIndexEnd = string.find(itemName, '@G%(@YAarchaeology@G%)')
+       local isAarchPamph = aarchPamphIndexStart == 1 and aarchPamphIndexEnd ~= nil
+
+       if isAarchItem then
+          addAarchItem(itemName)
+       elseif isAarchPamph then
+          addAarchPamph(itemName)
+       end
+    end
+end
+
+
+function resetState()
+    reportMode = 0
+    reportChannel = ''
+    aarchItems = {}
+    aarchPamphlets = {}
+    aarchCollected = {}  -- pieces AND pamphlets
+end
+
+
+function startCapturingInvdata(name, line, wildcards)
+    EnableTrigger('l33t_aarch_invdata_item', 1)
+end
+
+
+function stopCapturingInvdata(name, line, wildcards)
+    EnableTrigger('l33t_aarch_invdata_item', 0)
+    local report = getAarchReport()
+
+    if reportMode == 'extras' or reportMode == 'pieces' or reportMode == 'missing' or reportMode == 'turnin' then
+        reportToChannel(report)
+    elseif reportMode == 0 then
+        displayReport(report)
+    end
+    resetState()
+end
+
+
+function addAarchItem(itemName)
+    aarchNum = getAarchNumber(getAarchName(itemName))
+
+    local count = aarchItems[aarchNum] or 0
+    aarchItems[aarchNum] = (count + 1)
+
+    addAarchCollected(aarchNum)
+end
+
+
+function addAarchPamph(itemName)
+    local aarchNum = tonumber(string.match(itemName, 'Collectable Pamphlet #(%d+)'))
+    aarchPamphlets[aarchNum] = 1
+    addAarchCollected(aarchNum)
+end
+
+
+function addAarchCollected(aarchNum)
+   aarchCollected[aarchNum] = 1
+end
+
+
+function getAarchReport()
+     local pieces = ''
+     local i = 0
+
+     local piecesPrefix = reportMode == 'pieces' and '' or '- '
+     local piecesSuffix = reportMode == 'pieces' and '' or '\n'
+
+     for aarchNum, count in orderedPairs(aarchItems) do
+         if reportMode == 'pieces' and i > 0 then
+             pieces = pieces .. ', '
+         end
+         local formattedName = getFormattedAarchItemName(aarchNum)
+         local reward = getAarchReward(aarchNum)
+         pieces = pieces .. piecesPrefix .. count .. 'x ' .. formattedName .. ' @C(#' .. aarchNum .. ')@w (@Y' .. reward.amount .. ' ' .. reward.type .. '@w)' .. piecesSuffix
+         i = i + 1
+     end
+
+     local pamphlets = ''
+     local i = 0
+     for aarchNum, _ in orderedPairs(aarchPamphlets) do
+         if i > 0 then
+             pamphlets = pamphlets .. ', '
+         end
+         pamphlets = pamphlets .. aarchNum
+         i = i + 1
+     end
+
+     local collected = ''
+     local i = 0
+     for aarchNum, _ in orderedPairs(aarchCollected) do
+         if i > 0 then
+             collected = collected .. ', '
+         end
+         collected = collected .. aarchNum
+         i = i + 1
+     end
+
+     local missing = ''
+     local n = 1
+     while n <= 50 do
+         if aarchCollected[n] == nil then
+             if string.len(missing) > 0 then
+                 missing = missing .. ', '
+             end
+             local formattedName = getFormattedAarchItemName(n)
+             missing = missing .. formattedName .. ' @C(#' .. n .. ')@w'
+         end
+         n = n + 1
+     end
+
+     local extras = ''
+     local turnin = ''
+     local n = 1
+     while n <= 50 do
+         if aarchItems[n] ~= nil then
+             local formattedName = getFormattedAarchItemName(n)
+
+             if aarchPamphlets[n] == nil then
+                 -- items that still need to be turned in
+                 if string.len(turnin) > 0 then
+                    turnin = turnin .. ', '
+                 end
+                 turnin = turnin .. formattedName .. ' @C(#' .. n .. ')@w'
+             else
+                 -- extras
+                 if string.len(extras) > 0 then
+                    extras = extras .. ', '
+                 end
+                 extras = extras .. formattedName .. ' @C(#' .. n .. ')@w'
+             end
+         end
+         n = n + 1
+     end
+
+     local report = {
+         collected = collected,
+         extras = extras,
+         pieces = pieces,
+         missing = missing,
+         pamphlets = pamphlets,
+         turnin = turnin
+     }
+     return report
+end
+
+
+function reportToChannel(report)
+    local msg = nil
+
+    if reportMode == 'extras' then
+        msg = '@YAarchaeology@w item extras to barter/trade/sell: ' .. report.extras
+    elseif reportMode == 'pieces' then
+        msg = '@YAarchaeology@w items in inventory: ' .. report.pieces
+    elseif reportMode == 'missing' then
+        msg = '@YAarchaeology@w items missing: ' .. report.missing
+    elseif reportMode == 'turnin' then
+        msg = '@YAarchaeology@w items to turn in: ' .. report.turnin
+    end
+
+    SendNoEcho(reportChannel .. ' ' .. msg)
+end
+
+
+function displayReport(report)
+    local reportStr = (
+       'Aarchaeology items collected (items and pamphlets):\n' .. report.collected .. '\n\n'
+       .. 'Aarchaeology pamphlets collected:\n' .. report.pamphlets .. '\n\n'
+       .. 'Aarchaeology items in inventory:\n' .. report.pieces .. '\n\n'
+       .. 'Aarchaeology items missing:\n' .. report.missing .. '\n\n'
+       .. 'Aarchaeology extras:\n' .. report.extras .. '\n\n'
+       .. 'Aarchaeology items to turn in:\n' .. report.turnin .. '\n\n'
+    )
+
+    local savedContainerId = GetVariable('l33t_aarch_container_id')
+
+    printSeparator()
+    Tell('[l33t aarch report] by ' .. PLUGIN_AUTHOR .. ' (')
+    printPluginLink()
+    Tell(')\nContainer: ' .. savedContainerId .. '\n\n')
+    PrintAardText(reportStr)
+    printSeparator()
+end
+
+
+-- Aarchaeology Utils
+
+
+function getAarchName(itemName)
+    local name = string.match(itemName, '@R%(@YAarchaeology@R%)@W (.*)@w')
+    return name
+end
+
+
+function getAarchItemNameFromNumber(aarchNum)
+    local name = AARCH_NUM_ITEM_MAP[aarchNum]
+    return name
+end
+
+
+function getFormattedAarchItemName(aarchNum)
+    local name = getAarchItemNameFromNumber(aarchNum)
+    local formattedName = '@R(@YAarchaeology@R)@W ' .. name
+    return formattedName
+end
+
+
+function getAarchNumber(name)
+    local aarchNum = AARCH_ITEM_NUM_MAP[name]
+    return aarchNum
+end
+
+
+function getAarchReward(aarchNum)
+    local reward = {}
+    if aarchNum >= 1 and aarchNum <= 5 then
+        reward.type = 'Gold'
+        reward.amount = 10000
+    elseif aarchNum >= 6 and aarchNum <= 10 then
+        reward.type = 'Gold'
+        reward.amount = 50000
+    elseif aarchNum >= 11 and aarchNum <= 15 then
+        reward.type = 'Gold'
+        reward.amount = 100000
+    elseif aarchNum >= 16 and aarchNum <= 20 then
+        reward.type = 'Gold'
+        reward.amount = 250000
+    elseif aarchNum >= 21 and aarchNum <= 25 then
+        reward.type = 'Gold'
+        reward.amount = 500000
+    elseif aarchNum >= 26 and aarchNum <= 30 then
+        reward.type = 'Gold'
+        reward.amount = 750000
+    elseif aarchNum >= 31 and aarchNum <= 35 then
+        reward.type = 'Gold'
+        reward.amount = 1000000
+    elseif aarchNum >= 36 and aarchNum <= 41 then
+        reward.type = 'Gold'
+        reward.amount = 2000000
+    elseif aarchNum >= 42 and aarchNum <= 44 then
+        reward.type = 'Gold'
+        reward.amount = 5000000
+    elseif aarchNum >= 45 and aarchNum <= 46 then
+        reward.type = 'Gold'
+        reward.amount = 10000000
+    elseif aarchNum >= 47 and aarchNum <= 50 then
+        reward.type = 'Trivia Point'
+        reward.amount = 1
+    else
+        reward = nil
+    end
+
+    return reward
+end
+
+-- Help
+
+
+function OnHelp (sName, sLine, wildcards)
+    PrintAardText(GetPluginInfo(GetPluginID(), 3))
+end
+
+
+--[[
+Ordered table iterator, allow to iterate on the natural order of the keys of a
+table.
+
+From http://lua-users.org/wiki/SortedIteration
+]]
+
+function __genOrderedIndex( t )
+    local orderedIndex = {}
+    for key in pairs(t) do
+        table.insert( orderedIndex, key )
+    end
+    table.sort( orderedIndex )
+    return orderedIndex
+end
+
+function orderedNext(t, state)
+    -- Equivalent of the next function, but returns the keys in the alphabetic
+    -- order. We use a temporary ordered key table that is stored in the
+    -- table being iterated.
+
+    local key = nil
+    --print("orderedNext: state = "..tostring(state) )
+    if state == nil then
+        -- the first time, generate the index
+        t.__orderedIndex = __genOrderedIndex( t )
+        key = t.__orderedIndex[1]
+    else
+        -- fetch the next value
+        for i = 1,table.getn(t.__orderedIndex) do
+            if t.__orderedIndex[i] == state then
+                key = t.__orderedIndex[i+1]
+            end
+        end
+    end
+
+    if key then
+        return key, t[key]
+    end
+
+    -- no more value to return, cleanup
+    t.__orderedIndex = nil
+    return
+end
+
+function orderedPairs(t)
+    -- Equivalent of the pairs() function on tables. Allows to iterate
+    -- in order
+    return orderedNext, t, nil
+end
+--[[
+End Ordered Table functions
+]]
+
+
+function printSeparator()
+    ColourTell(
+        'CornFlowerBlue',
+        '',
+        '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n'
+    )
+end
+
+
+function printPluginLink()
+    Hyperlink(PLUGIN_URL, PLUGIN_URL, '', '', '', 1)
+end
+
+
+function loaded()
+    printSeparator()
+    ColourTell(
+        'CornFlowerBlue', '', (
+            'Loaded ' .. PLUGIN_NAME
+            .. ' (v' .. PLUGIN_VERSION .. ')'
+            .. ' by ' .. PLUGIN_AUTHOR
+            .. ' ('
+        )
+    )
+    printPluginLink()
+    ColourTell(
+        'CornFlowerBlue', '', (
+            ').\n'
+            .. 'Loaded '
+            .. PLUGIN_NUM_TRIGGERS .. ' triggers, '
+            .. PLUGIN_NUM_ALIASES .. ' aliases, '
+            .. PLUGIN_NUM_TIMERS .. ' timers.\n\n'
+        ),
+        'CornFlowerBlue', '', 'Type "',
+        'MediumSeaGreen', '', 'l33t aarch help',
+        'CornFlowerBlue', '', '" or "',
+        'MediumSeaGreen', '', 'report aarch help',
+        'CornFlowerBlue', '', '".\n'
+    )
+    printSeparator()
+end
+
+
+loaded()
+
+
+]]>
+    </script>
+
+</muclient>
